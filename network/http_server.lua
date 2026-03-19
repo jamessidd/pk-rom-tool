@@ -66,6 +66,8 @@ function HttpServer:start()
     console.log("  GET /party - Get current party information")
     console.log("  GET /player - Get current player information")
     console.log("  GET /bag - Get current bag information")
+    console.log("  GET /soullink/state - Get local Soul Link state")
+    console.log("  GET /soullink/events - Get recent Soul Link events")
     console.log("  GET /status - Get server status")
     console.log("  GET / - API documentation")
     -- console.log("  POST /setMoney - Set player's money amount")
@@ -155,6 +157,10 @@ function HttpServer:handleRequest(client, requestLine)
             apiHandlers.handlePlayerRequest(client, self.memoryReader)
         elseif path == "/bag" then
             apiHandlers.handleBagRequest(client, self.memoryReader)
+        elseif path == "/soullink/state" then
+            apiHandlers.handleSoulLinkStateRequest(client, self.memoryReader)
+        elseif path == "/soullink/events" then
+            apiHandlers.handleSoulLinkEventsRequest(client, self.memoryReader)
         elseif path == "/status" then
             apiHandlers.handleStatusRequest(client, self.memoryReader, self.port, self.host, self.isRunning)
         elseif path == "/" then

@@ -9,6 +9,7 @@ MemoryReader.partyReader = nil
 MemoryReader.playerReader = nil
 MemoryReader.server = nil
 MemoryReader.serverEnabled = true -- Can be toggled by user
+MemoryReader.soulLink = nil
 
 -- Load required modules
 local gameDetection = require("core.gamedetection")
@@ -29,6 +30,7 @@ local gameUtils = require("utils.gameutils")
 local debugTools = require("debug.debugtools")
 local Server = require("network.server")
 local gamesDB = require("data.gamesdb")
+local SoulLinkState = require("soullink.state")
 
 
 -- Initialize the Memory Reader
@@ -72,6 +74,8 @@ function MemoryReader.initialize()
         if MemoryReader.serverEnabled then
             MemoryReader.startServer()
         end
+
+        MemoryReader.soulLink = SoulLinkState:new()
         
         return true
     else
@@ -91,6 +95,10 @@ function MemoryReader.update()
     -- Update HTTP server
     if MemoryReader.server then
         MemoryReader.server:update()
+    end
+
+    if MemoryReader.soulLink then
+        MemoryReader.soulLink:update(MemoryReader)
     end
 end
 
@@ -169,6 +177,8 @@ function MemoryReader.shutdown()
     if MemoryReader.server then
         MemoryReader.stopServer()
     end
+
+    MemoryReader.soulLink = nil
     
     MemoryReader.isInitialized = false
 end

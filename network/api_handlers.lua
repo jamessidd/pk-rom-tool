@@ -42,6 +42,17 @@ function ApiHandlers.handleStatusRequest(client, memoryReader, port, host, isRun
             name = memoryReader.currentGame and memoryReader.currentGame.gameInfo.gameName or "None",
             generation = memoryReader.currentGame and memoryReader.currentGame.gameInfo.generation or 0,
             version = memoryReader.currentGame and memoryReader.currentGame.gameInfo.versionColor or "None"
+        },
+        soullink = memoryReader.soulLink and {
+            initialized = memoryReader.soulLink.baselineEstablished,
+            trackedPokemon = memoryReader.soulLink:getState().summary.trackedPokemon,
+            routeCount = memoryReader.soulLink:getState().summary.routeCount,
+            eventCount = memoryReader.soulLink:getState().summary.eventCount,
+        } or {
+            initialized = false,
+            trackedPokemon = 0,
+            routeCount = 0,
+            eventCount = 0,
         }
     }
     
@@ -52,6 +63,42 @@ end
 function ApiHandlers.handleRootRequest(client, port, host)
     local html = htmlDocs.getDocumentationHtml(port, host)
     httpUtils.sendResponse(client, 200, "OK", "text/html", html)
+end
+
+function ApiHandlers.handleSoulLinkStateRequest(client, memoryReader)
+    if not memoryReader.isInitialized then
+        httpUtils.sendResponse(client, 503, "Service Unavailable", "application/json",
+            json.encode({error = "Memory reader not initialized", message = "No Pokemon game detected"}))
+        return
+    end
+
+    if not memoryReader.soulLink then
+        httpUtils.sendResponse(client, 503, "Service Unavailable", "application/json",
+            json.encode({error = "Soul Link not available"}))
+        return
+    end
+
+    local state = memoryReader.soulLink:getState()
+    local jsonData = json.encode(state, {indent = true})
+    httpUtils.sendResponse(client, 200, "OK", "application/json", jsonData)
+end
+
+function ApiHandlers.handleSoulLinkEventsRequest(client, memoryReader)
+    if not memoryReader.isInitialized then
+        httpUtils.sendResponse(client, 503, "Service Unavailable", "application/json",
+            json.encode({error = "Memory reader not initialized", message = "No Pokemon game detected"}))
+        return
+    end
+
+    if not memoryReader.soulLink then
+        httpUtils.sendResponse(client, 503, "Service Unavailable", "application/json",
+            json.encode({error = "Soul Link not available"}))
+        return
+    end
+
+    local events = memoryReader.soulLink:getRecentEvents()
+    local jsonData = json.encode(events, {indent = true})
+    httpUtils.sendResponse(client, 200, "OK", "application/json", jsonData)
 end
 
 function ApiHandlers.handlePlayerRequest(client, memoryReader)

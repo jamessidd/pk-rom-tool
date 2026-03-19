@@ -19,6 +19,7 @@ end
 function UserCommands.help()
   console.log("=== Pokemon Memory Reader Commands ===")
   console.log("showParty() - Displays the current party information.")
+  console.log("showSoulLink() - Displays the current local Soul Link state.")
   console.log("startServer() - Starts the memory reading server.")
   console.log("stopServer() - Stops the memory reading server.")
   console.log("toggleServer() - Toggles the memory reading server.")
@@ -26,6 +27,8 @@ function UserCommands.help()
   console.log("")
   console.log("API Endpoints (when server running):")
   console.log("  GET http://localhost:8080/party - Party data in JSON")
+  console.log("  GET http://localhost:8080/soullink/state - Soul Link state in JSON")
+  console.log("  GET http://localhost:8080/soullink/events - Soul Link events in JSON")
   console.log("  GET http://localhost:8080/status - Server status")
   console.log("  GET http://localhost:8080/ - API documentation")
   console.log("=====================================")
@@ -90,6 +93,17 @@ function UserCommands.showPlayer()
   local trainerInfo = playerReader.trainerInfo
   local bag = playerReader.bag
   console.log(formatter.formatPlayerData(trainerInfo, bag))
+end
+
+function UserCommands.showSoulLink()
+  if not ensureInitialized() then return end
+  if not MemoryReader.soulLink then
+    console.log("Soul Link state is not available.")
+    return
+  end
+
+  local json = require("modules.dkjson")
+  console.log(json.encode(MemoryReader.soulLink:getState(), {indent = true}))
 end
 
 -- Sets the player's money to the specified amount.
