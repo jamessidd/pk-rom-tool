@@ -4,9 +4,11 @@ import json
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 import database as db
 from models import (
@@ -33,6 +35,8 @@ logger = logging.getLogger("pkrom.sync")
 
 rooms: dict[str, Room] = {}
 ws_connections: dict[str, list[WebSocket]] = {}
+_server_dir = Path(__file__).resolve().parent
+_web_dir = _server_dir.parent / "web"
 
 
 @asynccontextmanager
@@ -430,6 +434,22 @@ async def websocket_endpoint(websocket: WebSocket, code: str):
 @app.get("/health")
 async def health():
     return {"status": "ok", "rooms": len(rooms)}
+
+
+@app.get("/")
+async def serve_web_index():
+    index_path = _web_dir / "index.html"
+    if index_path.is_file():
+        return FileResponse(str(index_path))
+    return {"message": "PK ROM Tool Soul Link Sync", "web": "not found"}
+
+
+@app.get("/app/{path:path}")
+async def serve_web_assets(path: str):
+    file_path = _web_dir / path
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    raise HTTPException(status_code=404)
 
 
 if __name__ == "__main__":

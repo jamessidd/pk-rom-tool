@@ -30,6 +30,16 @@ function ApiHandlers.handlePartyRequest(client, memoryReader)
 end
 
 function ApiHandlers.handleStatusRequest(client, memoryReader, port, host, isRunning)
+    local gameInfo = memoryReader.currentGame and memoryReader.currentGame.gameInfo or nil
+    local gameUtils = require("utils.gameutils")
+    local romHash = memoryReader.currentGame and gameUtils.getROMHash() or ""
+    local profileId = ""
+    if gameInfo then
+        local name = (gameInfo.gameName or ""):lower():gsub("[^%w]+", "-")
+        local version = (gameInfo.versionColor or ""):lower():gsub("[^%w]+", "-")
+        profileId = (name ~= "" and version ~= "") and (name .. "-" .. version) or name
+    end
+
     local status = {
         server = {
             running = isRunning,
@@ -39,9 +49,12 @@ function ApiHandlers.handleStatusRequest(client, memoryReader, port, host, isRun
         },
         game = {
             initialized = memoryReader.isInitialized,
-            name = memoryReader.currentGame and memoryReader.currentGame.gameInfo.gameName or "None",
-            generation = memoryReader.currentGame and memoryReader.currentGame.gameInfo.generation or 0,
-            version = memoryReader.currentGame and memoryReader.currentGame.gameInfo.versionColor or "None"
+            name = gameInfo and gameInfo.gameName or "None",
+            generation = gameInfo and gameInfo.generation or 0,
+            version = gameInfo and gameInfo.versionColor or "None",
+            engine = gameInfo and tostring(gameInfo.generation or "") or "",
+            profileId = profileId,
+            romHash = romHash or ""
         },
         soullink = memoryReader.soulLink and {
             initialized = memoryReader.soulLink.baselineEstablished,
