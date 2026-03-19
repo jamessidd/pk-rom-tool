@@ -20,6 +20,7 @@ local Gen2PartyReader = require("readers.party.gen2partyreader")
 local Gen1PartyReader = require("readers.party.gen1partyreader")
 
 -- Generation Player Readers
+local CFRUPlayerReader = require("readers.player.cfruplayerreader")
 local Gen3PlayerReader = require("readers.player.gen3playerreader")
 local Gen2PlayerReader = require("readers.player.gen2playerreader")
 local Gen1PlayerReader = require("readers.player.gen1playerreader")
@@ -52,6 +53,7 @@ function MemoryReader.initialize()
         -- CFRU is Generally for Gen3 Rom Hacks
         if generation == "CFRU" then
             MemoryReader.partyReader = CFRUPartyReader:new()
+            MemoryReader.playerReader = CFRUPlayerReader:new()
         elseif generation == 3 then
             MemoryReader.partyReader = Gen3PartyReader:new()
             MemoryReader.playerReader = Gen3PlayerReader:new()
