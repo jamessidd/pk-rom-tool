@@ -7,11 +7,29 @@ export default function Controls({
   roomCode, onRoomCodeChange,
   onCreate, onJoin, onSolo,
   mode, error, onOpenRouteManager,
+  collapsed, onToggleCollapse,
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  if (collapsed) {
+    return (
+      <aside className="controls controls-collapsed">
+        <button className="sidebar-toggle" onClick={onToggleCollapse} title="Expand sidebar">
+          &#9776;
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside className="controls">
+      <div className="controls-top">
+        <span className="controls-title">Controls</span>
+        <button className="sidebar-toggle" onClick={onToggleCollapse} title="Collapse sidebar">
+          &#10005;
+        </button>
+      </div>
+
       <label>
         <span className="ctrl-label">Display Name</span>
         <input value={playerName} onChange={e => onNameChange(e.target.value)} placeholder="Your name" />

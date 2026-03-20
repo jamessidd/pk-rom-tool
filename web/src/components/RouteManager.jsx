@@ -1,8 +1,6 @@
 import useSprite from '../hooks/useSprite';
 
 export default function RouteManager({ routes, allCatches, assignments, onAssign, onClose, focusRoute }) {
-  const assignedPersonalities = new Set(Object.values(assignments));
-
   const routeGroups = routes.map(route => {
     const routeId = route.locationId ?? route.route ?? route.route_id;
     const routeName = route.locationName || route.route_name || `Location ${routeId}`;
@@ -19,7 +17,10 @@ export default function RouteManager({ routes, allCatches, assignments, onAssign
     return { routeId, routeName, assigned, alternatives };
   });
 
-  const unassigned = allCatches.filter(m => !assignedPersonalities.has(m.personality));
+  const resolvedPersonalities = new Set(
+    routeGroups.map(g => g.assigned?.personality).filter(Boolean)
+  );
+  const unassigned = allCatches.filter(m => !resolvedPersonalities.has(m.personality));
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

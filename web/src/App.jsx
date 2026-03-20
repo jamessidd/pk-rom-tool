@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import StatusBar from './components/StatusBar';
 import Controls from './components/Controls';
-import RoutePairRow from './components/RoutePairRow';
-import SoloPairRow from './components/SoloPairRow';
+import PartyGrid from './components/PartyGrid';
+import RouteLinkList, { SoloRouteLinkList } from './components/RouteLinkList';
 import EventFeed from './components/EventFeed';
 import RouteManager from './components/RouteManager';
 import useLocalTracker from './hooks/useLocalTracker';
@@ -41,6 +41,28 @@ function applySoloFirstCatch(routes, assignments) {
   });
 }
 
+function buildRouteMap(routes) {
+  const map = {};
+  for (const route of routes) {
+    const name = route.locationName || route.route_name || '';
+    for (const mon of (route.pokemon || [])) {
+      if (mon.personality) map[mon.personality] = name;
+    }
+  }
+  return map;
+}
+
+function buildRoomRouteMap(pairs) {
+  const map = {};
+  for (const pair of pairs) {
+    const name = pair.route_name || '';
+    for (const mon of Object.values(pair.pokemon || {})) {
+      if (mon.personality) map[mon.personality] = name;
+    }
+  }
+  return map;
+}
+
 export default function App() {
   const [playerName, setPlayerName] = useState(getPlayerName());
   const [localUrl, setLocalUrl]     = useState(getLocalUrl());
@@ -48,6 +70,7 @@ export default function App() {
   const [soloAssignments, _setSoloAssignments] = useState(getSoloAssignments);
   const [routeManagerOpen, setRouteManagerOpen] = useState(false);
   const [focusRoute, setFocusRoute] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { connected: localOk, status, soulLink, party: localParty } = useLocalTracker(localUrl);
   const room = useRoom(syncUrl, playerName, status, soulLink, localParty);
@@ -87,6 +110,15 @@ export default function App() {
 
   const allSoloCatches = enrichedSoloRoutes.flatMap(r => r.pokemon || []);
 
+  const enrichedLocalParty = (localParty || []).map(mon => {
+    const routeInfo = enrichedSoloRoutes.find(r =>
+      (r.pokemon || []).some(p => p.personality === mon.personality)
+    );
+    return mergeLocalDetails(mon, {}, routeInfo?.locationName || '');
+  });
+
+  const soloRouteMap = buildRouteMap(filteredSoloRoutes);
+
   const enrichedRoomPairs = roomPairs.map(pair => {
     const mergedPokemon = {};
     Object.entries(pair.pokemon || {}).forEach(([playerId, mon]) => {
@@ -103,9 +135,31 @@ export default function App() {
     return { ...pair, pokemon: mergedPokemon };
   });
 
+  const roomRouteMap = buildRoomRouteMap(enrichedRoomPairs);
+
   const isRoom = room.mode === 'room' && room.roomState;
-  const activeRoutes = isRoom ? enrichedRoomPairs.filter(p => Object.values(p.pokemon || {}).some(m => m.alive !== false)) : [];
-  const fallenRoutes = isRoom ? enrichedRoomPairs.filter(p => Object.values(p.pokemon || {}).some(m => m.alive === false)) : [];
+
+  const trainerParties = isRoom
+    ? roomPlayers.map(p => {
+        const snap = room.roomState?.player_snapshots?.[p.player_id];
+        const party = (snap?.current_party || []).map(mon => {
+          const pairMon = enrichedRoomPairs.flatMap(pair =>
+            Object.entries(pair.pokemon || {})
+              .filter(([pid]) => pid === p.player_id)
+              .map(([, m]) => m)
+          ).find(m => m.personality === mon.personality);
+          return { ...mon, ...pairMon };
+        });
+        return { name: p.player_name, playerId: p.player_id, party };
+      })
+    : [{ name: playerName || 'You', playerId: getPlayerId(), party: enrichedLocalParty }];
+
+  const roomLinks = enrichedRoomPairs.map(pair => ({
+    route: pair.route,
+    routeName: pair.route_name,
+    pokemon: pair.pokemon,
+    anyDead: Object.values(pair.pokemon || {}).some(m => m.alive === false),
+  }));
 
   function handleOpenReassign(routeId) {
     setFocusRoute(routeId ?? null);
@@ -146,6 +200,8 @@ export default function App() {
           mode={room.mode}
           error={room.error}
           onOpenRouteManager={() => { setFocusRoute(null); setRouteManagerOpen(true); }}
+          collapsed={!sidebarOpen}
+          onToggleCollapse={() => setSidebarOpen(o => !o)}
         />
 
         <main className="main-area">
@@ -156,63 +212,37 @@ export default function App() {
             </div>
           )}
 
-          {localOk && !isRoom && (
+          {localOk && (
             <>
               <section className="section">
-                <h2 className="section-title">Encounters</h2>
-                {filteredSoloRoutes.length === 0 && <p className="muted">No encounters tracked yet. Start playing!</p>}
-                {filteredSoloRoutes.map(route => (
-                  <SoloPairRow
-                    key={route.locationId}
-                    route={route}
-                    playerName={playerName || 'You'}
-                    onOpenReassign={handleOpenReassign}
-                  />
-                ))}
-              </section>
-              <section className="section feed-section">
-                <h2 className="section-title">Events</h2>
-                <EventFeed events={soloEvents} />
-              </section>
-            </>
-          )}
-
-          {isRoom && (
-            <>
-              <section className="section">
-                <h2 className="section-title">Active Links</h2>
-                {activeRoutes.length === 0 && fallenRoutes.length === 0 && (
-                  <p className="muted">No encounters tracked yet.</p>
-                )}
-                {activeRoutes.map(pair => (
-                  <RoutePairRow
-                    key={pair.route}
-                    pair={pair}
-                    players={roomPlayers}
-                    onUndoDeath={room.undoDeath}
-                    onMarkDead={room.markDead}
-                    onOpenReassign={handleOpenReassign}
-                  />
-                ))}
-              </section>
-              {fallenRoutes.length > 0 && (
-                <section className="section graveyard">
-                  <h2 className="section-title">Fallen Links</h2>
-                  {fallenRoutes.map(pair => (
-                    <RoutePairRow
-                      key={pair.route}
-                      pair={pair}
-                      players={roomPlayers}
-                      onUndoDeath={room.undoDeath}
-                      onMarkDead={room.markDead}
-                      onOpenReassign={handleOpenReassign}
+                <h2 className="section-title">Party</h2>
+                <div className="party-grids">
+                  {trainerParties.map(t => (
+                    <PartyGrid
+                      key={t.playerId}
+                      trainerName={t.name}
+                      party={t.party}
+                      routeMap={isRoom ? roomRouteMap : soloRouteMap}
                     />
                   ))}
+                </div>
+              </section>
+
+              {isRoom && roomLinks.length > 0 && (
+                <section className="section">
+                  <RouteLinkList links={roomLinks} players={roomPlayers} />
                 </section>
               )}
+
+              {!isRoom && filteredSoloRoutes.length > 0 && (
+                <section className="section">
+                  <SoloRouteLinkList routes={filteredSoloRoutes} />
+                </section>
+              )}
+
               <section className="section feed-section">
-                <h2 className="section-title">Room Events</h2>
-                <EventFeed events={roomEvents} />
+                <h2 className="section-title">{isRoom ? 'Room Events' : 'Events'}</h2>
+                <EventFeed events={isRoom ? roomEvents : soloEvents} />
               </section>
             </>
           )}
