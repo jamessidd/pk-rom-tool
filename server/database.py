@@ -89,6 +89,13 @@ async def initialize():
         """
     )
     await _db.commit()
+
+    try:
+        await _db.execute("ALTER TABLE rooms ADD COLUMN route_assignments_json TEXT DEFAULT '{}'")
+        await _db.commit()
+    except Exception:
+        pass
+
     logger.info("Database initialized at %s", DB_PATH)
 
 
@@ -100,17 +107,35 @@ async def close():
 
 
 def _build_pairs(room: Room) -> None:
-    catches_by_route: dict[int, dict[str, CatchRecord]] = {}
+    catch_index: dict[tuple[str, int], CatchRecord] = {}
+    routes_seen: dict[int, str] = {}
     for catch in room.catches:
-        if catch.route not in catches_by_route:
-            catches_by_route[catch.route] = {}
-        if catch.player_id not in catches_by_route[catch.route]:
-            catches_by_route[catch.route][catch.player_id] = catch
+        catch_index[(catch.player_id, catch.personality)] = catch
+        if catch.route not in routes_seen and catch.route_name:
+            routes_seen[catch.route] = catch.route_name
+        player_map = room.route_assignments.setdefault(catch.player_id, {})
+        if catch.route not in player_map:
+            player_map[catch.route] = catch.personality
 
     room.pairs = []
-    for route, player_catches in catches_by_route.items():
-        route_name = next((c.route_name for c in player_catches.values()), "")
-        room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches))
+    all_routes: set[int] = set()
+    for player_map in room.route_assignments.values():
+        all_routes.update(player_map.keys())
+
+    for route in sorted(all_routes):
+        route_name = routes_seen.get(route, "")
+        player_catches: dict[str, CatchRecord] = {}
+        for player_id, player_map in room.route_assignments.items():
+            personality = player_map.get(route)
+            if personality is None:
+                continue
+            catch = catch_index.get((player_id, personality))
+            if catch:
+                player_catches[player_id] = catch
+                if not route_name and catch.route_name:
+                    route_name = catch.route_name
+        if player_catches:
+            room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches))
     room.pairs.sort(key=lambda pair: pair.route)
 
 
@@ -135,10 +160,20 @@ async def load_all_rooms() -> dict[str, Room]:
         async for row in cursor:
             profile = json.loads(row["required_profile_json"]) if row["required_profile_json"] else None
             settings = json.loads(row["settings_json"] or "{}")
+            raw_assignments = {}
+            try:
+                raw_assignments = json.loads(row["route_assignments_json"] or "{}")
+            except (KeyError, json.JSONDecodeError):
+                pass
+            assignments: dict[str, dict[int, int]] = {}
+            for pid, rmap in raw_assignments.items():
+                assignments[pid] = {int(k): v for k, v in rmap.items()}
+
             rooms[row["code"]] = Room(
                 code=row["code"],
                 required_profile=GameProfile(**profile) if profile else None,
                 settings=RoomSettings(**settings) if settings else RoomSettings(),
+                route_assignments=assignments,
                 created_at=datetime.fromisoformat(row["created_at"]),
             )
 
@@ -213,12 +248,14 @@ async def save_room(room: Room):
     if not _db:
         return
     profile_json = json.dumps(room.required_profile.model_dump()) if room.required_profile else None
+    assignments_json = json.dumps({pid: {str(k): v for k, v in rmap.items()} for pid, rmap in room.route_assignments.items()})
     await _db.execute(
-        "INSERT OR REPLACE INTO rooms (code, required_profile_json, settings_json, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT OR REPLACE INTO rooms (code, required_profile_json, settings_json, route_assignments_json, created_at) VALUES (?, ?, ?, ?, ?)",
         (
             room.code,
             profile_json,
             json.dumps(room.settings.model_dump()),
+            assignments_json,
             room.created_at.isoformat(),
         ),
     )

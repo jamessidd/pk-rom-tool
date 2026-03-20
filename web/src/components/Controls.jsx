@@ -6,7 +6,7 @@ export default function Controls({
   syncUrl, onSyncUrlChange,
   roomCode, onRoomCodeChange,
   onCreate, onJoin, onSolo,
-  mode, error,
+  mode, error, onOpenRouteManager,
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -36,6 +36,12 @@ export default function Controls({
           <button onClick={onSolo}>Leave Room</button>
         )}
       </div>
+
+      {onOpenRouteManager && (
+        <button className="btn-secondary" onClick={onOpenRouteManager}>
+          Manage Routes
+        </button>
+      )}
 
       {error && <div className="ctrl-error">{error}</div>}
 

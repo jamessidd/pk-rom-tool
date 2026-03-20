@@ -24,6 +24,7 @@ from models import (
     PairGroup,
     PlayerPresence,
     PlayerSnapshot,
+    ReassignRequest,
     ReconcileRequest,
     Room,
     RoomState,
@@ -103,18 +104,40 @@ def compatibility_for(room: Room, profile: GameProfile) -> CompatibilityResult:
     )
 
 
+def auto_assign_catch(room: Room, catch: CatchRecord):
+    player_map = room.route_assignments.setdefault(catch.player_id, {})
+    if catch.route not in player_map:
+        player_map[catch.route] = catch.personality
+
+
 def auto_pair_catches(room: Room):
-    catches_by_route: dict[int, dict[str, CatchRecord]] = {}
+    catch_index: dict[tuple[str, int], CatchRecord] = {}
+    routes_seen: dict[int, str] = {}
     for catch in room.catches:
-        if catch.route not in catches_by_route:
-            catches_by_route[catch.route] = {}
-        if catch.player_id not in catches_by_route[catch.route]:
-            catches_by_route[catch.route][catch.player_id] = catch
+        catch_index[(catch.player_id, catch.personality)] = catch
+        if catch.route not in routes_seen and catch.route_name:
+            routes_seen[catch.route] = catch.route_name
+        auto_assign_catch(room, catch)
 
     room.pairs = []
-    for route, player_catches in catches_by_route.items():
-        route_name = next((c.route_name for c in player_catches.values()), "")
-        room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches))
+    all_routes: set[int] = set()
+    for player_map in room.route_assignments.values():
+        all_routes.update(player_map.keys())
+
+    for route in sorted(all_routes):
+        route_name = routes_seen.get(route, "")
+        player_catches: dict[str, CatchRecord] = {}
+        for player_id, player_map in room.route_assignments.items():
+            personality = player_map.get(route)
+            if personality is None:
+                continue
+            catch = catch_index.get((player_id, personality))
+            if catch:
+                player_catches[player_id] = catch
+                if not route_name and catch.route_name:
+                    route_name = catch.route_name
+        if player_catches:
+            room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches))
     room.pairs.sort(key=lambda pair: pair.route)
 
 
@@ -405,6 +428,38 @@ async def override_death(code: str, request: OverrideDeathRequest):
     return {"message": "Override applied", "route": request.route, "alive": request.alive}
 
 
+@app.post("/rooms/{code}/reassign")
+async def reassign_route(code: str, request: ReassignRequest):
+    room = get_room(code)
+    if request.player_id not in room.players:
+        raise HTTPException(status_code=409, detail="Player must join room before reassigning")
+
+    catch = next(
+        (c for c in room.catches if c.player_id == request.player_id and c.personality == request.personality),
+        None,
+    )
+    if not catch:
+        raise HTTPException(status_code=404, detail="Pokemon not found in player catches")
+
+    room.route_assignments.setdefault(request.player_id, {})[request.route] = request.personality
+    auto_pair_catches(room)
+    await db.save_room(room)
+    for c in room.catches:
+        await db.save_catch(code, c)
+
+    logger.info("[%s] %s reassigned route %s to personality %s", code, request.player_id, request.route, request.personality)
+    await broadcast_to_room(code, {
+        "type": "reassign",
+        "player_id": request.player_id,
+        "route": request.route,
+        "personality": request.personality,
+        "pairs": [pair.model_dump(mode="json") for pair in room.pairs],
+        "catches": [catch.model_dump(mode="json") for catch in room.catches],
+        "route_assignments": room.route_assignments,
+    })
+    return {"message": "Route reassigned", "route": request.route, "personality": request.personality}
+
+
 @app.get("/rooms/{code}/state", response_model=RoomState)
 async def get_room_state(code: str):
     room = get_room(code)
@@ -417,6 +472,7 @@ async def get_room_state(code: str):
         player_snapshots=room.player_snapshots,
         events=room.events[-100:],
         settings=room.settings,
+        route_assignments=room.route_assignments,
     )
 
 
@@ -456,6 +512,7 @@ async def websocket_endpoint(websocket: WebSocket, code: str):
                         player_snapshots=room.player_snapshots,
                         events=room.events[-100:],
                         settings=room.settings,
+                        route_assignments=room.route_assignments,
                     ).model_dump(mode="json"),
                 },
                 default=str,

@@ -2,6 +2,12 @@ import { useState } from 'react';
 import useSprite from '../hooks/useSprite';
 import TypeBadge from './TypeBadge';
 
+function hpColor(ratio) {
+  if (ratio > 0.5) return '#34d399';
+  if (ratio > 0.25) return '#fbbf24';
+  return '#ef4444';
+}
+
 export default function PokemonCard({ mon, playerName, dead }) {
   const [expanded, setExpanded] = useState(false);
   const species  = mon.species_name || mon.species || '';
@@ -21,49 +27,61 @@ export default function PokemonCard({ mon, playerName, dead }) {
   const heldItem = mon.held_item || mon.heldItem;
   const hiddenPower = mon.hidden_power || mon.hiddenPower;
   const friendship = mon.friendship;
+  const hpRatio = maxHp > 0 ? hp / maxHp : 0;
 
   return (
     <div className={`poke-card ${alive ? '' : 'dead'}`} onClick={() => setExpanded(e => !e)}>
-      <div className="poke-owner">{playerName}</div>
-      <div className="poke-visual">
-        {img && (
-          <img
-            className="poke-sprite"
-            src={img}
-            alt={species}
-            loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-        )}
-        {!img && <div className="poke-sprite-fallback">?</div>}
+      <div className="poke-header">
+        <span className="poke-owner">{playerName}</span>
+        <span className="poke-level">Lv. {level}</span>
+      </div>
+      <div className="poke-body">
         <div className="poke-info">
-          <div className="poke-nickname">{nickname}</div>
-          <div className="poke-species">{species}</div>
-          <div className="poke-types">
-            {types.map(t => <TypeBadge key={t} type={t} />)}
+          <div className="poke-name-row">
+            <span className="poke-nickname">{nickname}</span>
+            {mon.isShiny && <span className="shiny-star" title="Shiny">&#9733;</span>}
           </div>
-          <div className="poke-level">Lv. {level}</div>
+          {species !== nickname && <div className="poke-species">{species}</div>}
+          <div className="poke-chips">
+            {types.map(t => <TypeBadge key={t} type={t} />)}
+            {nature && <span className="nature-chip">{nature}</span>}
+          </div>
           {alive && hasHp && (
             <div className="hp-bar-wrap">
-              <div className="hp-bar" style={{ width: `${maxHp > 0 ? (hp / maxHp) * 100 : 0}%` }} />
+              <div className="hp-bar" style={{ width: `${hpRatio * 100}%`, background: hpColor(hpRatio) }} />
               <span className="hp-text">{hp}/{maxHp}</span>
             </div>
           )}
-          {alive && !hasHp && <div className="poke-subtle">Live HP unavailable</div>}
+          {alive && !hasHp && <div className="poke-subtle">HP unavailable</div>}
           {!alive && <div className="poke-dead-label">FALLEN</div>}
         </div>
+        <div className="poke-sprite-col">
+          {img ? (
+            <img
+              className="poke-sprite"
+              src={img}
+              alt={species}
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          ) : (
+            <div className="poke-sprite-fallback">?</div>
+          )}
+        </div>
       </div>
+
       {expanded && (
         <div className="poke-details">
-          <Detail label="Met" value={metName} />
-          <Detail label="Met Lv" value={metLevel} />
-          {nature && <Detail label="Nature" value={nature} />}
-          {heldItem && <Detail label="Held Item" value={heldItem} />}
-          {hiddenPower && <Detail label="Hidden Power" value={hiddenPower} />}
-          {friendship !== undefined && friendship !== null && <Detail label="Friendship" value={friendship} />}
-          {mon.isShiny && <Detail label="Shiny" value="Yes" />}
-          {ivs && <StatBlock title="IVs" stats={ivs} />}
-          {evs && <StatBlock title="EVs" stats={evs} />}
+          <div className="poke-meta-grid">
+            <Detail label="Met" value={`${metName} (Lv. ${metLevel})`} />
+            {heldItem && <Detail label="Item" value={heldItem} />}
+            {nature && <Detail label="Nature" value={nature} />}
+            {hiddenPower && <Detail label="Hidden Pwr" value={hiddenPower} />}
+            {friendship !== undefined && friendship !== null && <Detail label="Friendship" value={friendship} />}
+            {mon.isShiny && <Detail label="Shiny" value="Yes" />}
+          </div>
+          {ivs && <StatBlock title="IVs" stats={ivs} max={31} />}
+          {evs && <StatBlock title="EVs" stats={evs} max={252} />}
         </div>
       )}
     </div>
@@ -71,10 +89,15 @@ export default function PokemonCard({ mon, playerName, dead }) {
 }
 
 function Detail({ label, value }) {
-  return <div className="poke-detail"><span className="detail-label">{label}</span> {String(value)}</div>;
+  return (
+    <div className="poke-detail">
+      <span className="detail-label">{label}</span>
+      <span className="detail-value">{String(value)}</span>
+    </div>
+  );
 }
 
-function StatBlock({ title, stats }) {
+function StatBlock({ title, stats, max }) {
   const entries = [
     ['HP', stats.hp],
     ['ATK', stats.attack],
@@ -86,13 +109,24 @@ function StatBlock({ title, stats }) {
   return (
     <div className="stat-block">
       <div className="stat-title">{title}</div>
-      <div className="stat-grid">
-        {entries.map(([label, value]) => (
-          <div key={label} className="stat-item">
-            <span className="detail-label">{label}</span>
-            <span>{value ?? '-'}</span>
-          </div>
-        ))}
+      <div className="stat-rows">
+        {entries.map(([label, value]) => {
+          const v = value ?? 0;
+          const pct = max > 0 ? (v / max) * 100 : 0;
+          const perfect = title === 'IVs' && v === 31;
+          return (
+            <div key={label} className="stat-row">
+              <span className="stat-label">{label}</span>
+              <div className="stat-bar-track">
+                <div
+                  className={`stat-bar-fill ${perfect ? 'perfect' : ''}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="stat-value">{value ?? '-'}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -159,6 +159,7 @@ class Room(BaseModel):
     player_snapshots: dict[str, PlayerSnapshot] = {}
     events: list[LocalEvent] = []
     settings: RoomSettings = Field(default_factory=RoomSettings)
+    route_assignments: dict[str, dict[int, int]] = {}
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -174,6 +175,12 @@ class JoinRoomResponse(BaseModel):
     players: list[PlayerPresence] = []
 
 
+class ReassignRequest(BaseModel):
+    player_id: str
+    route: int
+    personality: int
+
+
 class RoomState(BaseModel):
     code: str
     required_profile: GameProfile | None = None
@@ -183,6 +190,7 @@ class RoomState(BaseModel):
     player_snapshots: dict[str, PlayerSnapshot]
     events: list[LocalEvent]
     settings: RoomSettings = Field(default_factory=RoomSettings)
+    route_assignments: dict[str, dict[int, int]] = {}
 
 
 class CreateRoomResponse(BaseModel):

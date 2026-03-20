@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getPlayerId, createRoom as apiCreateRoom, joinRoom as apiJoinRoom,
-  fetchRoomState, sendReconcile, overrideDeath,
+  fetchRoomState, sendReconcile, overrideDeath, reassignRoute as apiReassign,
 } from '../utils/api';
 
 function buildProfile(status) {
@@ -185,6 +185,26 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     }
   }, [syncUrl, roomCode, refreshRoom]);
 
+  const markDead = useCallback(async (route) => {
+    if (!roomCode) return;
+    try {
+      await overrideDeath(syncUrl, roomCode, route, false);
+      await refreshRoom(roomCode);
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [syncUrl, roomCode, refreshRoom]);
+
+  const reassign = useCallback(async (route, personality) => {
+    if (!roomCode) return;
+    try {
+      await apiReassign(syncUrl, roomCode, playerId, route, personality);
+      await refreshRoom(roomCode);
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [syncUrl, roomCode, playerId, refreshRoom]);
+
   useEffect(() => {
     return () => {
       if (wsRef.current) wsRef.current.close();
@@ -194,6 +214,6 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
 
   return {
     roomCode, setRoomCode, roomState, syncConnected,
-    error, mode, create, join, goSolo, undoDeath,
+    error, mode, create, join, goSolo, undoDeath, markDead, reassign,
   };
 }

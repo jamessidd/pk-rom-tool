@@ -73,3 +73,18 @@ export async function overrideDeath(syncBase, code, route, alive) {
     body: JSON.stringify({ route, alive }),
   });
 }
+
+export async function reassignRoute(syncBase, code, playerId, route, personality) {
+  return json(`${syncBase}/rooms/${code}/reassign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player_id: playerId, route, personality }),
+  });
+}
+
+export function getSoloAssignments() {
+  try { return JSON.parse(localStorage.getItem('pkrom-solo-assignments') || '{}'); } catch { return {}; }
+}
+export function setSoloAssignments(assignments) {
+  try { localStorage.setItem('pkrom-solo-assignments', JSON.stringify(assignments)); } catch { /* noop */ }
+}
