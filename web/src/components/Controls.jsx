@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { getTrainerSpriteUrl } from './TrainerSpritePicker';
 
+function formatMoney(n) {
+  return n != null ? `$${Number(n).toLocaleString()}` : null;
+}
+
 export default function Controls({
   playerName, onNameChange,
   localUrl, onLocalUrlChange,
@@ -10,6 +14,7 @@ export default function Controls({
   mode, error, onOpenRouteManager,
   collapsed, onToggleCollapse,
   trainerSpriteId, onOpenSpritePicker,
+  money, coins,
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const spriteUrl = getTrainerSpriteUrl(trainerSpriteId);
@@ -37,6 +42,13 @@ export default function Controls({
         <span className="ctrl-label">Display Name</span>
         <input value={playerName} onChange={e => onNameChange(e.target.value)} placeholder="Your name" />
       </label>
+
+      {(money != null || coins != null) && (
+        <div className="ctrl-wallet">
+          {money != null && <span className="ctrl-wallet-item">{formatMoney(money)}</span>}
+          {coins != null && coins > 0 && <span className="ctrl-wallet-item ctrl-wallet-coins">{Number(coins).toLocaleString()} coins</span>}
+        </div>
+      )}
 
       <div className="ctrl-sprite-row">
         <span className="ctrl-label">Trainer Sprite</span>

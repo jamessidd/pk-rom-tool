@@ -7,13 +7,23 @@ function hpColor(ratio) {
   return '#ef4444';
 }
 
-function statColor(value, max) {
-  const ratio = value / max;
-  if (ratio >= 0.75) return '#34d399';
-  if (ratio >= 0.5) return '#60a5fa';
-  if (ratio >= 0.35) return '#fbbf24';
-  return '#ef4444';
+function statColor(value) {
+  if (value >= 150) return '#00c2b8';
+  if (value >= 120) return '#23cd5e';
+  if (value >= 90)  return '#a0e515';
+  if (value >= 60)  return '#ffdd57';
+  if (value >= 30)  return '#ff7f0f';
+  return '#f34444';
 }
+
+const STATUS_META = {
+  Poisoned:  { label: 'PSN', cls: 'pc-status-psn' },
+  Toxic:     { label: 'TOX', cls: 'pc-status-tox' },
+  Burned:    { label: 'BRN', cls: 'pc-status-brn' },
+  Paralyzed: { label: 'PAR', cls: 'pc-status-par' },
+  Asleep:    { label: 'SLP', cls: 'pc-status-slp' },
+  Frozen:    { label: 'FRZ', cls: 'pc-status-frz' },
+};
 
 export default function PartyCard({ mon, routeName }) {
   const species    = mon.species_name || mon.species || '';
@@ -25,13 +35,13 @@ export default function PartyCard({ mon, routeName }) {
   const types      = mon.types || [];
   const alive      = mon.alive !== undefined ? mon.alive : hp > 0;
   const hasHp      = maxHp > 0;
-  const ivs        = mon.ivs || mon.IVs;
-  const evs        = mon.evs || mon.EVs;
   const nature     = mon.nature;
   const heldItem   = mon.held_item || mon.heldItem;
   const friendship = mon.friendship;
   const hpRatio    = maxHp > 0 ? hp / maxHp : 0;
   const route      = routeName || mon.met_location_name || mon.metLocationName || mon.route_name || mon.routeName || '';
+  const statusRaw  = mon.status;
+  const statusInfo = statusRaw && statusRaw !== 'Healthy' ? STATUS_META[statusRaw] : null;
 
   return (
     <div className={`pc ${alive ? '' : 'pc-dead'}`}>
@@ -49,6 +59,7 @@ export default function PartyCard({ mon, routeName }) {
           <div className="pc-chips">
             {types.map(t => <TypeBadge key={t} type={t} />)}
             {nature && <span className="pc-nature">{nature}</span>}
+            {statusInfo && <span className={`pc-status ${statusInfo.cls}`}>{statusInfo.label}</span>}
           </div>
           {alive && hasHp && (
             <div className="pc-hp-row">
@@ -82,7 +93,6 @@ export default function PartyCard({ mon, routeName }) {
         </div>
       </div>
 
-      {(ivs || evs) && <StatBars ivs={ivs} evs={evs} />}
       {baseStats && <BaseStatChart stats={baseStats} />}
     </div>
   );
@@ -92,49 +102,6 @@ export function EmptySlot() {
   return (
     <div className="pc pc-empty">
       <div className="pc-empty-inner">Empty</div>
-    </div>
-  );
-}
-
-function StatBars({ ivs, evs }) {
-  const stats = [
-    ['HP',  ivs?.hp, evs?.hp],
-    ['ATK', ivs?.attack, evs?.attack],
-    ['DEF', ivs?.defense, evs?.defense],
-    ['SPA', ivs?.specialAttack, evs?.specialAttack],
-    ['SPD', ivs?.specialDefense, evs?.specialDefense],
-    ['SPE', ivs?.speed, evs?.speed],
-  ];
-
-  return (
-    <div className="sb">
-      <div className="sb-header">
-        <span className="sb-header-label">IV</span>
-        <span className="sb-header-label">EV</span>
-      </div>
-      {stats.map(([label, iv, ev]) => (
-        <div key={label} className="sb-row">
-          <span className="sb-label">{label}</span>
-          <div className="sb-bars">
-            <div className="sb-track">
-              <div
-                className={`sb-fill sb-iv ${iv === 31 ? 'sb-perfect' : ''}`}
-                style={{ width: `${((iv ?? 0) / 31) * 100}%` }}
-              />
-            </div>
-            <div className="sb-track">
-              <div
-                className={`sb-fill sb-ev ${(ev ?? 0) > 0 ? 'sb-ev-active' : ''}`}
-                style={{ width: `${((ev ?? 0) / 252) * 100}%` }}
-              />
-            </div>
-          </div>
-          <span className="sb-vals">
-            <span className="sb-iv-num">{iv ?? '-'}</span>
-            <span className="sb-ev-num">{ev ?? '-'}</span>
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -163,7 +130,7 @@ function BaseStatChart({ stats }) {
               className="bst-fill"
               style={{
                 width: `${Math.min(100, (val / BST_MAX) * 100)}%`,
-                background: statColor(val, BST_MAX),
+                background: statColor(val),
               }}
             />
           </div>

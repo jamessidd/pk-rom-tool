@@ -9,23 +9,25 @@ export default function PartyGrid({ trainerName, party, routeMap, trainerSprite 
   return (
     <div className="pg">
       <div className="pg-header">
-        {trainerSprite && (
-          <img className="pg-trainer-sprite" src={trainerSprite} alt="" />
-        )}
         <span className="pg-trainer-name">{trainerName}</span>
       </div>
-      <div className="pg-grid">
-        {slots.map((mon, i) =>
-          mon ? (
-            <PartyCard
-              key={mon.personality || i}
-              mon={mon}
-              routeName={routeMap?.[mon.personality]}
-            />
-          ) : (
-            <EmptySlot key={`empty-${i}`} />
-          )
+      <div className="pg-grid-wrap">
+        {trainerSprite && (
+          <img className="pg-trainer-bg" src={trainerSprite} alt="" />
         )}
+        <div className="pg-grid">
+          {slots.map((mon, i) =>
+            mon ? (
+              <PartyCard
+                key={mon.personality || i}
+                mon={mon}
+                routeName={routeMap?.[mon.personality]}
+              />
+            ) : (
+              <EmptySlot key={`empty-${i}`} />
+            )
+          )}
+        </div>
       </div>
     </div>
   );

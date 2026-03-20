@@ -209,6 +209,8 @@ export default function App() {
           onToggleCollapse={() => setSidebarOpen(o => !o)}
           trainerSpriteId={trainerSpriteId}
           onOpenSpritePicker={() => setSpritePickerOpen(true)}
+          money={trainerInfo?.money}
+          coins={trainerInfo?.coins}
         />
 
         <main className="main-area">

@@ -151,6 +151,17 @@ button:active { transform:scale(0.97); }
 .btn-text:hover { color:var(--text); }
 .ctrl-error { font-size:12px; color:var(--red); padding:4px 0; }
 .ctrl-advanced { display:flex; flex-direction:column; gap:10px; }
+.ctrl-wallet {
+  display:flex; flex-direction:column; gap:2px;
+  padding:6px 10px; border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.03); border:1px solid var(--glass-border);
+}
+.ctrl-wallet-item {
+  font-size:12px; font-weight:700; color:var(--text);
+}
+.ctrl-wallet-coins {
+  font-size:10px; font-weight:600; color:var(--gold);
+}
 
 /* ---- Main ---- */
 .main-area { flex:1; padding:20px 24px; overflow-y:auto; }
@@ -191,16 +202,23 @@ button:active { transform:scale(0.97); }
   display:flex; align-items:center; gap:8px;
   margin-bottom:8px;
 }
-.pg-trainer-sprite {
-  width:40px; height:40px; image-rendering:pixelated;
-  object-fit:contain; border-radius:8px;
-  background:rgba(255,255,255,0.04); border:1px solid var(--glass-border);
-}
 .pg-trainer-name {
   font-size:12px; font-weight:700; text-transform:uppercase;
   letter-spacing:.5px; color:var(--accent);
 }
+.pg-grid-wrap {
+  position:relative; overflow:hidden; border-radius:var(--radius);
+}
+.pg-trainer-bg {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%, -40%);
+  height:70%; max-height:320px;
+  opacity:0.07; z-index:0; pointer-events:none;
+  image-rendering:pixelated; object-fit:contain;
+  filter:brightness(1.5);
+}
 .pg-grid {
+  position:relative; z-index:1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -285,6 +303,16 @@ button:active { transform:scale(0.97); }
   padding:2px 6px; border-radius:4px;
   background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);
 }
+.pc-status {
+  font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.3px;
+  padding:2px 6px; border-radius:4px;
+}
+.pc-status-psn { background:rgba(160,64,160,0.2); color:#d8a0d8; }
+.pc-status-tox { background:rgba(120,40,120,0.25); color:#c080c0; }
+.pc-status-brn { background:rgba(240,128,48,0.2); color:#f0a060; }
+.pc-status-par { background:rgba(248,208,48,0.2); color:#f8d030; }
+.pc-status-slp { background:rgba(160,160,160,0.15); color:#a8a8a8; }
+.pc-status-frz { background:rgba(100,200,230,0.2); color:#98d8d8; }
 
 /* HP */
 .pc-hp-row { display:flex; align-items:center; gap:6px; margin-top:6px; }
@@ -310,47 +338,6 @@ button:active { transform:scale(0.97); }
 .pc-friend-fill { height:100%; border-radius:2px; background:var(--gold); transition:width .3s; }
 .pc-friend-val { font-size:8px; font-weight:600; color:var(--text-muted); }
 
-/* ---- Stat Bars ---- */
-.sb {
-  margin-top:6px; padding-top:6px;
-  border-top:1px solid var(--glass-border);
-}
-.sb-row { display:flex; align-items:center; gap:4px; height:14px; }
-.sb-label {
-  width:24px; font-size:8px; font-weight:700;
-  color:var(--text-muted); text-transform:uppercase;
-  letter-spacing:.3px; text-align:right; flex-shrink:0;
-}
-.sb-bars { flex:1; display:flex; gap:2px; }
-.sb-track {
-  flex:1; height:4px; background:rgba(255,255,255,0.05);
-  border-radius:2px; overflow:hidden;
-}
-.sb-fill {
-  height:100%; border-radius:2px; transition:width .3s;
-  min-width:1px;
-}
-.sb-iv { background:var(--accent); opacity:.6; }
-.sb-iv.sb-perfect { background:var(--green); opacity:1; }
-.sb-ev { background:rgba(245,158,11,0.2); }
-.sb-ev.sb-ev-active { background:var(--gold); opacity:.8; }
-.sb-vals {
-  display:flex; gap:2px; width:42px; flex-shrink:0;
-  font-size:8px; font-weight:600; text-align:right;
-}
-.sb-iv-num { color:rgba(147,197,253,0.7); width:18px; text-align:right; }
-.sb-ev-num { color:rgba(245,158,11,0.6); width:20px; text-align:right; }
-.sb-header {
-  display:flex; justify-content:flex-end; gap:2px;
-  margin-bottom:2px; padding-right:2px;
-}
-.sb-header-label {
-  width:20px; text-align:right;
-  font-size:7px; font-weight:700; text-transform:uppercase; letter-spacing:.3px;
-}
-.sb-header-label:first-child { color:var(--accent); }
-.sb-header-label:last-child { color:var(--gold); }
-
 /* ---- Base Stat Chart ---- */
 .bst {
   margin-top:6px; padding-top:6px;
@@ -375,7 +362,7 @@ button:active { transform:scale(0.97); }
   text-align:right; flex-shrink:0; color:var(--text);
 }
 .bst-track {
-  flex:1; height:5px; background:rgba(255,255,255,0.05);
+  flex:1; height:5px; background:rgba(255,255,255,0.08);
   border-radius:3px; overflow:hidden;
 }
 .bst-fill {
