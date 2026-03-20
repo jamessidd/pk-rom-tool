@@ -1,5 +1,6 @@
 import usePokemonData from '../hooks/usePokemonData';
 import TypeBadge from './TypeBadge';
+import { TYPE_COLORS } from '../utils/types';
 
 function hpColor(ratio) {
   if (ratio > 0.5) return '#34d399';
@@ -14,6 +15,14 @@ function statColor(value) {
   if (value >= 60)  return '#ffdd57';
   if (value >= 30)  return '#ff7f0f';
   return '#f34444';
+}
+
+function typeGradient(types) {
+  if (!types || types.length === 0) return 'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))';
+  const c1 = TYPE_COLORS[types[0]] || '#666';
+  if (types.length === 1) return `linear-gradient(135deg, ${c1}66, ${c1}22)`;
+  const c2 = TYPE_COLORS[types[1]] || '#666';
+  return `linear-gradient(135deg, ${c1}66, ${c2}66)`;
 }
 
 const STATUS_META = {
@@ -42,58 +51,66 @@ export default function PartyCard({ mon, routeName }) {
   const route      = routeName || mon.met_location_name || mon.metLocationName || mon.route_name || mon.routeName || '';
   const statusRaw  = mon.status;
   const statusInfo = statusRaw && statusRaw !== 'Healthy' ? STATUS_META[statusRaw] : null;
+  const ivs        = mon.ivs || mon.IVs || null;
+  const evs        = mon.evs || mon.EVs || null;
 
   return (
     <div className={`pc ${alive ? '' : 'pc-dead'}`}>
-      <div className="pc-top">
-        {route && <span className="pc-route-badge">{route}</span>}
-        <span className="pc-level">Lv.{level}</span>
-      </div>
-      <div className="pc-body">
-        <div className="pc-info">
-          <div className="pc-name-row">
-            <span className="pc-nickname">{nickname}</span>
-            {mon.isShiny && <span className="pc-shiny">&#9733;</span>}
-          </div>
-          {species !== nickname && <div className="pc-species">{species}</div>}
-          <div className="pc-chips">
-            {types.map(t => <TypeBadge key={t} type={t} />)}
-            {nature && <span className="pc-nature">{nature}</span>}
-            {statusInfo && <span className={`pc-status ${statusInfo.cls}`}>{statusInfo.label}</span>}
-          </div>
-          {alive && hasHp && (
-            <div className="pc-hp-row">
-              <div className="pc-hp-track">
-                <div className="pc-hp-fill" style={{ width: `${hpRatio * 100}%`, background: hpColor(hpRatio) }} />
-              </div>
-              <span className="pc-hp-val">{hp}/{maxHp}</span>
-            </div>
-          )}
-          {!alive && <div className="pc-fallen">FALLEN</div>}
-          {friendship !== undefined && friendship !== null && (
-            <div className="pc-friend-row">
-              <span className="pc-friend-label">Friendship</span>
-              <div className="pc-friend-track">
-                <div className="pc-friend-fill" style={{ width: `${Math.min(100, (friendship / 255) * 100)}%` }} />
-              </div>
-              <span className="pc-friend-val">{friendship}</span>
-            </div>
-          )}
+      <div className="pc-header" style={{ background: typeGradient(types) }}>
+        <div className="pc-level-block">
+          <span className="pc-level-label">Level</span>
+          <span className="pc-level-num">{level}</span>
         </div>
-        <div className="pc-sprite-col">
+        <div className="pc-header-meta">
+          {route && <span className="pc-route-badge">{route}</span>}
+        </div>
+        <div className="pc-sprite-anchor">
           {img ? (
             <img className="pc-sprite" src={img} alt={species} loading="lazy"
               onError={e => { e.currentTarget.style.display = 'none'; }} />
           ) : (
             <div className="pc-sprite-fb">?</div>
           )}
-          {heldItem && heldItem !== 'None' && (
-            <div className="pc-held-item" title={heldItem}>{heldItem}</div>
-          )}
         </div>
       </div>
 
-      {baseStats && <BaseStatChart stats={baseStats} />}
+      <div className="pc-details">
+        <div className="pc-name-row">
+          <span className="pc-nickname">{nickname}</span>
+          {mon.isShiny && <span className="pc-shiny">&#9733;</span>}
+        </div>
+        {species !== nickname && <div className="pc-species">{species}</div>}
+        <div className="pc-chips">
+          {types.map(t => <TypeBadge key={t} type={t} />)}
+          {nature && <span className="pc-nature">{nature}</span>}
+          {statusInfo && <span className={`pc-status ${statusInfo.cls}`}>{statusInfo.label}</span>}
+        </div>
+        {alive && hasHp && (
+          <div className="pc-hp-row">
+            <div className="pc-hp-track">
+              <div className="pc-hp-fill" style={{ width: `${hpRatio * 100}%`, background: hpColor(hpRatio) }} />
+            </div>
+            <span className="pc-hp-val">{hp}/{maxHp}</span>
+          </div>
+        )}
+        {!alive && <div className="pc-fallen">FALLEN</div>}
+        {heldItem && heldItem !== 'None' && (
+          <div className="pc-held-item" title={heldItem}>{heldItem}</div>
+        )}
+        {friendship !== undefined && friendship !== null && (
+          <div className="pc-friend-row">
+            <span className="pc-friend-label">Friendship</span>
+            <div className="pc-friend-track">
+              <div className="pc-friend-fill" style={{ width: `${Math.min(100, (friendship / 255) * 100)}%` }} />
+            </div>
+            <span className="pc-friend-val">{friendship}</span>
+          </div>
+        )}
+      </div>
+
+      {(baseStats || ivs || evs) && (
+        <StatFooter baseStats={baseStats} ivs={ivs} evs={evs} />
+      )}
     </div>
   );
 }
@@ -107,35 +124,62 @@ export function EmptySlot() {
 }
 
 const BST_MAX = 255;
+const STAT_KEYS = ['hp', 'attack', 'defense', 'specialAttack', 'specialDefense', 'speed'];
+const STAT_LABELS = ['HP', 'ATK', 'DEF', 'SPA', 'SPD', 'SPE'];
+const IV_EV_LABELS = ['HP', 'Atk', 'Def', 'SpA', 'SpD', 'Spe'];
 
-function BaseStatChart({ stats }) {
-  const rows = [
-    ['HP',  stats.hp],
-    ['ATK', stats.attack],
-    ['DEF', stats.defense],
-    ['SPA', stats.specialAttack],
-    ['SPD', stats.specialDefense],
-    ['SPE', stats.speed],
-  ];
+function StatFooter({ baseStats, ivs, evs }) {
+  const hasIvEv = ivs || evs;
 
   return (
-    <div className="bst">
-      <div className="bst-title">Base Stats <span className="bst-total">{stats.total}</span></div>
-      {rows.map(([label, val]) => (
-        <div key={label} className="bst-row">
-          <span className="bst-label">{label}</span>
-          <span className="bst-val">{val}</span>
-          <div className="bst-track">
-            <div
-              className="bst-fill"
-              style={{
-                width: `${Math.min(100, (val / BST_MAX) * 100)}%`,
-                background: statColor(val),
-              }}
-            />
-          </div>
+    <div className="sf">
+      {hasIvEv && (
+        <div className="sf-ivev">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                {ivs && <th>IV</th>}
+                {evs && <th>EV</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {IV_EV_LABELS.map((label, i) => {
+                const ivKey = STAT_KEYS[i];
+                const ivVal = ivs?.[ivKey] ?? ivs?.[label.toLowerCase()];
+                const evVal = evs?.[ivKey] ?? evs?.[label.toLowerCase()];
+                return (
+                  <tr key={label}>
+                    <td className="sf-stat-label">{label}</td>
+                    {ivs && <td className={ivVal === 31 ? 'sf-perfect' : ''}>{ivVal ?? '—'}</td>}
+                    {evs && <td className={evVal === 252 ? 'sf-maxed' : ''}>{evVal ?? '—'}</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      ))}
+      )}
+      {baseStats && (
+        <div className="sf-bst">
+          <div className="bst-title">Base Stats <span className="bst-total">{baseStats.total}</span></div>
+          {STAT_KEYS.map((key, i) => {
+            const val = baseStats[key] ?? 0;
+            return (
+              <div key={key} className="bst-row">
+                <span className="bst-label">{STAT_LABELS[i]}</span>
+                <span className="bst-val">{val}</span>
+                <div className="bst-track">
+                  <div className="bst-fill" style={{
+                    width: `${Math.min(100, (val / BST_MAX) * 100)}%`,
+                    background: statColor(val),
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import StatusBar from './components/StatusBar';
-import Controls from './components/Controls';
+import SettingsModal from './components/SettingsModal';
 import PartyGrid from './components/PartyGrid';
 import RouteLinkList, { SoloRouteLinkList } from './components/RouteLinkList';
 import EventFeed from './components/EventFeed';
@@ -72,12 +72,14 @@ export default function App() {
   const [soloAssignments, _setSoloAssignments] = useState(getSoloAssignments);
   const [routeManagerOpen, setRouteManagerOpen] = useState(false);
   const [focusRoute, setFocusRoute] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [trainerSpriteId, setTrainerSpriteId] = useState(getTrainerSprite);
   const [spritePickerOpen, setSpritePickerOpen] = useState(false);
 
   const { connected: localOk, status, soulLink, party: localParty, trainerInfo } = useLocalTracker(localUrl);
   const room = useRoom(syncUrl, playerName, status, soulLink, localParty);
+
+  const localPlayerId = getPlayerId();
 
   function handleNameChange(n)     { setPlayerName(n); saveName(n); }
   function handleLocalChange(u)    { setLocalUrl(u);   saveLocal(u); }
@@ -86,6 +88,7 @@ export default function App() {
 
   const resolvedTrainerName = trainerInfo?.name || playerName || 'You';
   const trainerSpriteUrl = getTrainerSpriteUrl(trainerSpriteId);
+  const gameName = status?.game?.name;
 
   const updateSoloAssignments = useCallback((newAssignments) => {
     _setSoloAssignments(newAssignments);
@@ -156,9 +159,26 @@ export default function App() {
           ).find(m => m.personality === mon.personality);
           return { ...mon, ...pairMon };
         });
-        return { name: p.player_name, playerId: p.player_id, party };
+        const playerSprite = snap?.trainer_sprite_id
+          ? getTrainerSpriteUrl(snap.trainer_sprite_id)
+          : (p.player_id === localPlayerId ? trainerSpriteUrl : null);
+        return {
+          name: p.player_name,
+          playerId: p.player_id,
+          party,
+          spriteUrl: playerSprite,
+          money: snap?.money,
+          coins: snap?.coins,
+        };
       })
-    : [{ name: resolvedTrainerName, playerId: getPlayerId(), party: enrichedLocalParty, spriteUrl: trainerSpriteUrl }];
+    : [{
+        name: resolvedTrainerName,
+        playerId: localPlayerId,
+        party: enrichedLocalParty,
+        spriteUrl: trainerSpriteUrl,
+        money: trainerInfo?.money,
+        coins: trainerInfo?.coins,
+      }];
 
   const roomLinks = enrichedRoomPairs.map(pair => ({
     route: pair.route,
@@ -187,10 +207,84 @@ export default function App() {
         mode={room.mode}
         roomCode={room.roomCode}
         gameInfo={status}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenRouteManager={() => { setFocusRoute(null); setRouteManagerOpen(true); }}
       />
 
-      <div className="app-body">
-        <Controls
+      <main className="main-area">
+        {!localOk && (
+          <div className="empty-state">
+            <h2>Waiting for Local Tracker</h2>
+            <p>Start BizHawk with the pk-rom-tool script, then refresh.</p>
+          </div>
+        )}
+
+        {localOk && isSolo && (
+          <div className="layout-solo">
+            <section className="solo-party">
+              <h2 className="section-title">Party</h2>
+              <div className="party-grids">
+                {trainerParties.map(t => (
+                  <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={soloRouteMap} trainerSprite={t.spriteUrl} money={t.money} coins={t.coins} />
+                ))}
+              </div>
+            </section>
+            <section className="solo-encounters">
+              {filteredSoloRoutes.length > 0 && <SoloRouteLinkList routes={filteredSoloRoutes} gameName={gameName} />}
+              <div className="solo-events">
+                <h2 className="section-title">Events</h2>
+                <EventFeed events={soloEvents} />
+              </div>
+            </section>
+          </div>
+        )}
+
+        {localOk && isMulti && (
+          <div className="layout-multi">
+            <section className="section">
+              <h2 className="section-title">Party</h2>
+              <div className="party-grids party-grids-center">
+                {trainerParties.map(t => (
+                  <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} money={t.money} coins={t.coins} />
+                ))}
+              </div>
+            </section>
+            <div className="gradient-divider" />
+            {roomLinks.length > 0 && (
+              <section className="section">
+                <RouteLinkList links={roomLinks} players={roomPlayers} />
+              </section>
+            )}
+            <section className="section">
+              <h2 className="section-title">Room Events</h2>
+              <EventFeed events={roomEvents} />
+            </section>
+          </div>
+        )}
+
+        {localOk && isRoom && !isMulti && (
+          <div className="layout-solo">
+            <section className="solo-party">
+              <h2 className="section-title">Party</h2>
+              <div className="party-grids">
+                {trainerParties.map(t => (
+                  <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} money={t.money} coins={t.coins} />
+                ))}
+              </div>
+            </section>
+            <section className="solo-encounters">
+              {roomLinks.length > 0 && <RouteLinkList links={roomLinks} players={roomPlayers} />}
+              <div className="solo-events">
+                <h2 className="section-title">Room Events</h2>
+                <EventFeed events={roomEvents} />
+              </div>
+            </section>
+          </div>
+        )}
+      </main>
+
+      {settingsOpen && (
+        <SettingsModal
           playerName={playerName}
           onNameChange={handleNameChange}
           localUrl={localUrl}
@@ -204,87 +298,11 @@ export default function App() {
           onSolo={room.goSolo}
           mode={room.mode}
           error={room.error}
-          onOpenRouteManager={() => { setFocusRoute(null); setRouteManagerOpen(true); }}
-          collapsed={!sidebarOpen}
-          onToggleCollapse={() => setSidebarOpen(o => !o)}
           trainerSpriteId={trainerSpriteId}
           onOpenSpritePicker={() => setSpritePickerOpen(true)}
-          money={trainerInfo?.money}
-          coins={trainerInfo?.coins}
+          onClose={() => setSettingsOpen(false)}
         />
-
-        <main className="main-area">
-          {!localOk && (
-            <div className="empty-state">
-              <h2>Waiting for Local Tracker</h2>
-              <p>Start BizHawk with the pk-rom-tool script, then refresh.</p>
-            </div>
-          )}
-
-          {localOk && isSolo && (
-            <div className="layout-solo">
-              <section className="solo-party">
-                <h2 className="section-title">Party</h2>
-                <div className="party-grids">
-                  {trainerParties.map(t => (
-                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={soloRouteMap} trainerSprite={t.spriteUrl} />
-                  ))}
-                </div>
-              </section>
-              <section className="solo-encounters">
-                {filteredSoloRoutes.length > 0 && <SoloRouteLinkList routes={filteredSoloRoutes} />}
-                <div className="solo-events">
-                  <h2 className="section-title">Events</h2>
-                  <EventFeed events={soloEvents} />
-                </div>
-              </section>
-            </div>
-          )}
-
-          {localOk && isMulti && (
-            <div className="layout-multi">
-              <section className="section">
-                <h2 className="section-title">Party</h2>
-                <div className="party-grids party-grids-center">
-                  {trainerParties.map(t => (
-                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} />
-                  ))}
-                </div>
-              </section>
-              <div className="gradient-divider" />
-              {roomLinks.length > 0 && (
-                <section className="section">
-                  <RouteLinkList links={roomLinks} players={roomPlayers} />
-                </section>
-              )}
-              <section className="section">
-                <h2 className="section-title">Room Events</h2>
-                <EventFeed events={roomEvents} />
-              </section>
-            </div>
-          )}
-
-          {localOk && isRoom && !isMulti && (
-            <div className="layout-solo">
-              <section className="solo-party">
-                <h2 className="section-title">Party</h2>
-                <div className="party-grids">
-                  {trainerParties.map(t => (
-                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} />
-                  ))}
-                </div>
-              </section>
-              <section className="solo-encounters">
-                {roomLinks.length > 0 && <RouteLinkList links={roomLinks} players={roomPlayers} />}
-                <div className="solo-events">
-                  <h2 className="section-title">Room Events</h2>
-                  <EventFeed events={roomEvents} />
-                </div>
-              </section>
-            </div>
-          )}
-        </main>
-      </div>
+      )}
 
       {spritePickerOpen && (
         <TrainerSpritePicker
@@ -295,8 +313,7 @@ export default function App() {
       )}
 
       {routeManagerOpen && (() => {
-        const playerId = getPlayerId();
-        const roomAssignments = room.roomState?.route_assignments?.[playerId] || {};
+        const roomAssignments = room.roomState?.route_assignments?.[localPlayerId] || {};
         const intKeyedRoomAssignments = {};
         for (const [k, v] of Object.entries(roomAssignments)) {
           intKeyedRoomAssignments[Number(k)] = v;
@@ -304,7 +321,7 @@ export default function App() {
         return (
           <RouteManager
             routes={isRoom ? enrichedRoomPairs.map(p => ({ locationId: p.route, locationName: p.route_name, pokemon: Object.values(p.pokemon || {}) })) : enrichedSoloRoutes}
-            allCatches={isRoom ? roomCatches.filter(c => c.player_id === playerId) : allSoloCatches}
+            allCatches={isRoom ? roomCatches.filter(c => c.player_id === localPlayerId) : allSoloCatches}
             assignments={isRoom ? intKeyedRoomAssignments : soloAssignments}
             onAssign={isRoom ? handleRoomAssign : handleSoloAssign}
             onClose={() => setRouteManagerOpen(false)}
