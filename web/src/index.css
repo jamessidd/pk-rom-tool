@@ -184,7 +184,7 @@ button:active { transform:scale(0.97); }
 .ctrl-sprite-none { font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
 
 /* ---- Main ---- */
-.main-area { flex:1; padding:20px 40px; overflow-y:auto; max-width:1400px; margin:0 auto; width:100%; }
+.main-area { flex:1; padding:20px 32px; overflow-y:auto; }
 .section { margin-bottom:20px; }
 .section-title {
   font-size:11px; font-weight:600; text-transform:uppercase;
@@ -207,8 +207,34 @@ button:active { transform:scale(0.97); }
 .solo-encounters { flex:1; min-width:0; max-width:420px; }
 .solo-events { margin-top:16px; }
 
-/* ---- Multi Layout ---- */
-.layout-multi { }
+/* ---- Multi Layout (3-column) ---- */
+.layout-multi-new {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.multi-timeline {
+  width: 320px;
+  min-width: 280px;
+  flex-shrink: 0;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.multi-my-party {
+  flex-shrink: 0;
+}
+.multi-friends {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+.multi-links-section { margin-top: 16px; }
+.multi-events-section { margin-top: 16px; }
 .party-grids-center { justify-content:center; }
 
 /* ---- Party Grids ---- */
@@ -712,6 +738,221 @@ button:active { transform:scale(0.97); }
   text-transform:uppercase; letter-spacing:.5px;
 }
 
+/* ---- Soul Link Timeline ---- */
+.slt {
+  padding-bottom: 12px;
+}
+.slt-title {
+  font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1px; color:var(--accent);
+  margin-bottom:10px; padding-bottom:6px;
+  border-bottom:1px solid var(--glass-border);
+}
+.slt-empty {
+  font-size:11px; color:var(--text-muted); font-style:italic; padding:8px 0;
+}
+.slt-list {
+  display:flex; flex-direction:column; gap:2px;
+}
+
+.slt-route {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 10px;
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:8px;
+  min-height:38px;
+  transition:border-color .15s;
+}
+.slt-route:hover { border-color:rgba(255,255,255,0.12); }
+.slt-route-empty { opacity:0.5; }
+.slt-route-name {
+  font-size:10px; font-weight:700;
+  color:var(--text); flex-shrink:0;
+  max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.slt-route-placeholder {
+  font-size:9px; color:var(--text-muted); font-style:italic;
+}
+
+.slt-enc {
+  display:flex; align-items:center; gap:6px; min-width:0;
+}
+.slt-enc-dead { opacity:0.45; filter:saturate(0.3); }
+.slt-enc-sprite {
+  width:24px; height:24px; image-rendering:pixelated;
+  object-fit:contain; flex-shrink:0;
+}
+.slt-enc-sprite-fb {
+  width:24px; height:24px; border-radius:4px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--glass-border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:8px; font-weight:700; color:var(--text-muted); flex-shrink:0;
+}
+.slt-enc-info { min-width:0; }
+.slt-enc-name {
+  font-size:10px; font-weight:600; color:var(--text);
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.slt-enc-species {
+  font-size:8px; color:var(--text-muted); text-transform:uppercase;
+  letter-spacing:.2px;
+}
+.slt-enc-tag-dead {
+  font-size:7px; font-weight:700; text-transform:uppercase;
+  padding:1px 4px; border-radius:3px;
+  background:rgba(239,68,68,0.15); color:#fca5a5;
+  flex-shrink:0;
+}
+
+.slt-boss {
+  padding:5px 10px;
+  border-left:3px solid var(--accent);
+  border-radius:0 6px 6px 0;
+  background:rgba(59,130,246,0.04);
+  margin:2px 0;
+}
+.slt-boss-header {
+  display:flex; align-items:center; gap:6px;
+}
+.slt-boss-name {
+  font-size:10px; font-weight:700; color:var(--text);
+}
+.slt-boss-type {
+  font-size:7px; font-weight:700; color:#fff; text-transform:uppercase;
+  letter-spacing:.3px; padding:1px 5px; border-radius:3px;
+}
+.slt-boss-meta {
+  display:flex; align-items:center; gap:8px; margin-top:1px;
+}
+.slt-boss-loc {
+  font-size:8px; color:var(--text-muted);
+}
+.slt-boss-cap {
+  font-size:8px; font-weight:700; color:var(--gold);
+  background:rgba(245,158,11,0.1);
+  padding:1px 5px; border-radius:3px;
+}
+
+.slt-rival {
+  display:flex; align-items:center; gap:8px;
+  padding:4px 10px;
+  margin:1px 0;
+}
+.slt-rival-icon {
+  font-size:8px; font-weight:800; color:var(--red);
+  background:rgba(239,68,68,0.12);
+  padding:2px 5px; border-radius:4px;
+  letter-spacing:.5px;
+}
+.slt-rival-info { min-width:0; }
+.slt-rival-name {
+  font-size:10px; font-weight:700; color:var(--text);
+}
+.slt-rival-loc {
+  font-size:8px; color:var(--text-muted); margin-left:6px;
+}
+
+/* ---- Compact Party Grid ---- */
+.cpg {
+  flex-shrink: 0;
+}
+.cpg-banner {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 10px; margin-bottom:6px;
+  background:var(--glass-bg); border:1px solid var(--glass-border);
+  border-radius:var(--radius-sm);
+}
+.cpg-banner-sprite {
+  height:36px; image-rendering:pixelated; object-fit:contain; flex-shrink:0;
+}
+.cpg-banner-info {
+  display:flex; flex-direction:column; gap:1px; min-width:0;
+}
+.cpg-trainer-name {
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.4px; color:var(--accent);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cpg-money { font-size:10px; font-weight:700; color:var(--text); }
+.cpg-coins { font-size:8px; font-weight:600; color:var(--gold); }
+.cpg-grid {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:4px;
+}
+
+/* ---- Compact Party Card ---- */
+.cpc {
+  width:100%;
+  position:relative;
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-sm);
+  overflow:hidden;
+  transition:border-color .15s;
+}
+.cpc:hover { border-color:rgba(255,255,255,0.12); }
+.cpc-dead { opacity:.5; filter:saturate(0.2); }
+
+.cpc-empty {
+  display:flex; align-items:center; justify-content:center;
+  min-height:80px; border-style:dashed; opacity:.2;
+}
+
+.cpc-header {
+  position:relative;
+  padding:4px 6px 10px;
+  border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+  min-height:32px;
+}
+.cpc-level {
+  font-size:16px; font-weight:800; color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,0.3);
+  z-index:1; position:relative;
+}
+.cpc-sprite-anchor {
+  position:absolute;
+  right:0; top:-8px;
+  z-index:2; pointer-events:none;
+}
+.cpc-sprite {
+  width:64px; height:64px;
+  image-rendering:pixelated; object-fit:contain;
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,0.25));
+  animation:breathe 3s ease-in-out infinite;
+}
+.cpc-sprite-fb {
+  width:64px; height:64px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:16px; color:rgba(255,255,255,0.15);
+}
+.cpc-dead .cpc-sprite { filter:grayscale(1) brightness(0.4); animation:none; }
+
+.cpc-body {
+  padding:4px 6px 6px;
+}
+.cpc-name {
+  font-size:11px; font-weight:700; line-height:1.2;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cpc-species {
+  font-size:8px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.2px;
+}
+.cpc-chips {
+  display:flex; gap:2px; margin-top:2px; flex-wrap:wrap; align-items:center;
+}
+.cpc-chips .type-badge { font-size:7px; padding:1px 4px; }
+.cpc-chips .pc-nature { font-size:7px; padding:1px 4px; }
+.cpc-chips .pc-status { font-size:7px; padding:1px 4px; }
+
+.cpc-hp-row { display:flex; align-items:center; gap:4px; margin-top:3px; }
+.cpc-hp-track {
+  flex:1; height:3px; background:rgba(255,255,255,0.06);
+  border-radius:2px; overflow:hidden;
+}
+.cpc-hp-fill { height:100%; border-radius:2px; transition:width .3s; }
+.cpc-hp-val { font-size:7px; font-weight:600; color:var(--text-muted); white-space:nowrap; }
+
 /* ---- FLIP Swap Animation ---- */
 .pc-flip-animate {
   transition: transform .35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -760,10 +1001,20 @@ button:active { transform:scale(0.97); }
 @media (max-width: 1000px) {
   .layout-solo { flex-direction:column; }
   .solo-encounters { width:100%; }
+  .layout-multi-new { flex-direction:column; }
+  .multi-timeline {
+    width:100%; min-width:0;
+    max-height:400px; overflow-y:auto;
+  }
+  .multi-friends {
+    flex-direction:row; flex-wrap:wrap;
+    max-height:none; overflow:visible;
+  }
 }
 @media (max-width: 900px) {
   .pg-grid { grid-template-columns:1fr; }
   .pc { width:100%; }
   .party-grids { flex-direction:column; }
   .et-col-route { width:80px; }
+  .cpg-grid { grid-template-columns:1fr 1fr; }
 }

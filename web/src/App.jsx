@@ -2,6 +2,8 @@ import { useState, useCallback, useRef } from 'react';
 import StatusBar from './components/StatusBar';
 import SettingsModal from './components/SettingsModal';
 import PartyGrid from './components/PartyGrid';
+import CompactPartyGrid from './components/CompactPartyGrid';
+import SoulLinkTimeline from './components/SoulLinkTimeline';
 import RouteLinkList, { SoloRouteLinkList } from './components/RouteLinkList';
 import EventFeed from './components/EventFeed';
 import RouteManager from './components/RouteManager';
@@ -9,6 +11,7 @@ import TrainerSpritePicker, { getTrainerSpriteUrl } from './components/TrainerSp
 import useLocalTracker from './hooks/useLocalTracker';
 import useRoom from './hooks/useRoom';
 import { getMockPlayerCount, generateMockData } from './utils/mockData';
+import { getTimeline } from './data/gameTimelines';
 import {
   getPlayerId, getPlayerName, setPlayerName as saveName,
   getLocalUrl, setLocalUrl as saveLocal,
@@ -278,28 +281,54 @@ export default function App() {
           </div>
         )}
 
-        {localOk && isMulti && (
-          <div className="layout-multi">
-            <section className="section">
-              <h2 className="section-title">Party</h2>
-              <div className="party-grids party-grids-center">
-                {finalTrainerParties.map(t => (
-                  <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={finalRouteMap} trainerSprite={t.spriteUrl} money={t.money} coins={t.coins} />
-                ))}
-              </div>
-            </section>
-            <div className="gradient-divider" />
-            {finalRoomLinks.length > 0 && (
-              <section className="section">
-                <RouteLinkList links={finalRoomLinks} players={finalRoomPlayers} />
+        {localOk && isMulti && (() => {
+          const timeline = getTimeline(gameName);
+          const myParty = finalTrainerParties[0];
+          const friendParties = finalTrainerParties.slice(1);
+
+          return (
+            <div className="layout-multi-new">
+              <aside className="multi-timeline">
+                <SoulLinkTimeline
+                  timeline={timeline}
+                  encounters={isMockMode ? [] : filteredSoloRoutes}
+                />
+                {finalRoomLinks.length > 0 && (
+                  <div className="multi-links-section">
+                    <h3 className="section-title">Linked Encounters</h3>
+                    <RouteLinkList links={finalRoomLinks} players={finalRoomPlayers} />
+                  </div>
+                )}
+                <div className="multi-events-section">
+                  <h3 className="section-title">{isMockMode ? 'Events (Mock)' : 'Room Events'}</h3>
+                  <EventFeed events={finalRoomEvents} />
+                </div>
+              </aside>
+              <section className="multi-my-party">
+                <PartyGrid
+                  trainerName={myParty.name}
+                  party={myParty.party}
+                  routeMap={finalRouteMap}
+                  trainerSprite={myParty.spriteUrl}
+                  money={myParty.money}
+                  coins={myParty.coins}
+                />
               </section>
-            )}
-            <section className="section">
-              <h2 className="section-title">{isMockMode ? 'Events (Mock)' : 'Room Events'}</h2>
-              <EventFeed events={finalRoomEvents} />
-            </section>
-          </div>
-        )}
+              <aside className="multi-friends">
+                {friendParties.map(f => (
+                  <CompactPartyGrid
+                    key={f.playerId}
+                    trainerName={f.name}
+                    party={f.party}
+                    trainerSprite={f.spriteUrl}
+                    money={f.money}
+                    coins={f.coins}
+                  />
+                ))}
+              </aside>
+            </div>
+          );
+        })()}
 
         {localOk && isRoom && !isMulti && !isMockMode && (
           <div className="layout-solo">
