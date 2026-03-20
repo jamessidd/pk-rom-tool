@@ -1,83 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PK ROM Tool Soul Link</title>
-    <link rel="stylesheet" href="/app/style.css">
-</head>
-<body>
-    <div class="app">
-        <header class="header">
-            <div>
-                <h1>PK ROM Tool Soul Link</h1>
-                <p class="subtitle">Solo tracker and Soul Link room control center.</p>
-            </div>
-            <div class="status-grid">
-                <div class="status-card">
-                    <span class="label">Local Tracker</span>
-                    <span id="local-status" class="status-pill disconnected">Disconnected</span>
-                </div>
-                <div class="status-card">
-                    <span class="label">Sync Server</span>
-                    <span id="sync-status" class="status-pill disconnected">Disconnected</span>
-                </div>
-                <div class="status-card">
-                    <span class="label">Room</span>
-                    <span id="room-status" class="status-pill idle">Solo</span>
-                </div>
-            </div>
-        </header>
-
-        <main class="layout">
-            <section class="panel controls">
-                <h2>Session</h2>
-                <label>
-                    Display Name
-                    <input id="player-name" type="text" placeholder="Your name">
-                </label>
-                <label>
-                    Local Tracker URL
-                    <input id="local-url" type="text" value="http://localhost:8080">
-                </label>
-                <label>
-                    Sync Server URL
-                    <input id="sync-url" type="text" value="http://localhost:8000">
-                </label>
-                <div class="button-row">
-                    <button id="refresh-btn">Refresh Local</button>
-                    <button id="solo-btn">Solo Mode</button>
-                </div>
-
-                <h3>Soul Link Room</h3>
-                <label>
-                    Room Code
-                    <input id="room-code" type="text" placeholder="ABC123" maxlength="6">
-                </label>
-                <div class="button-row">
-                    <button id="create-room-btn" class="primary">Create Room</button>
-                    <button id="join-room-btn">Join Room</button>
-                </div>
-                <p id="message" class="message"></p>
-            </section>
-
-            <section class="panel local-panel">
-                <h2>Local Game</h2>
-                <div id="local-game" class="meta-list"></div>
-                <div id="local-party" class="party-grid"></div>
-                <div id="local-events" class="event-list"></div>
-            </section>
-
-            <section class="panel room-panel">
-                <h2>Room State</h2>
-                <div id="room-meta" class="meta-list"></div>
-                <div id="room-players" class="player-list"></div>
-                <div id="room-pairs" class="pair-list"></div>
-                <div id="room-events" class="event-list"></div>
-            </section>
-        </main>
-    </div>
-
-    <script src="/app/app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Soul Link — PK ROM Tool</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/QualIQAAAABJRU5ErkJggg==">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

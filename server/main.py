@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 import database as db
 from models import (
@@ -36,7 +37,7 @@ logger = logging.getLogger("pkrom.sync")
 rooms: dict[str, Room] = {}
 ws_connections: dict[str, list[WebSocket]] = {}
 _server_dir = Path(__file__).resolve().parent
-_web_dir = _server_dir.parent / "web"
+_web_dir = _server_dir.parent / "web" / "dist"
 
 
 @asynccontextmanager
@@ -337,12 +338,13 @@ async def reconcile_room(code: str, request: ReconcileRequest):
     for catch in room.catches:
         if catch.player_id != request.player_id:
             continue
+        if not catch.alive:
+            continue
         matching = next((pokemon for pokemon in snapshot.current_party if pokemon.personality == catch.personality), None)
-        if matching:
-            if catch.alive and matching.current_hp == 0:
-                dead_route = propagate_death(room, catch.personality, catch.player_id)
-                if dead_route is not None:
-                    await db.update_catch_route_status(code, dead_route, False)
+        if matching and matching.current_hp == 0:
+            dead_route = propagate_death(room, catch.personality, catch.player_id)
+            if dead_route is not None:
+                await db.update_catch_route_status(code, dead_route, False)
 
     for catch in room.catches:
         await db.save_catch(code, catch)
@@ -359,6 +361,34 @@ async def reconcile_room(code: str, request: ReconcileRequest):
         },
     )
     return {"message": "Reconciliation received", "accepted_events": len(accepted_events)}
+
+
+class OverrideDeathRequest(BaseModel):
+    route: int
+    alive: bool
+
+
+@app.post("/rooms/{code}/override-death")
+async def override_death(code: str, request: OverrideDeathRequest):
+    room = get_room(code)
+    changed = False
+    for catch in room.catches:
+        if catch.route == request.route:
+            catch.alive = request.alive
+            changed = True
+    if changed:
+        auto_pair_catches(room)
+        await db.update_catch_route_status(code, request.route, request.alive)
+        for catch in room.catches:
+            await db.save_catch(code, catch)
+        await broadcast_to_room(code, {
+            "type": "override",
+            "route": request.route,
+            "alive": request.alive,
+            "pairs": [pair.model_dump(mode="json") for pair in room.pairs],
+            "catches": [catch.model_dump(mode="json") for catch in room.catches],
+        })
+    return {"message": "Override applied", "route": request.route, "alive": request.alive}
 
 
 @app.get("/rooms/{code}/state", response_model=RoomState)
