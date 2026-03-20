@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { spriteUrl } from '../utils/types';
+import useSprite from '../hooks/useSprite';
 import TypeBadge from './TypeBadge';
 
 export default function PokemonCard({ mon, playerName, dead }) {
   const [expanded, setExpanded] = useState(false);
   const species  = mon.species_name || mon.species || '';
-  const img = spriteUrl(species);
+  const img = useSprite(species);
   const nickname = mon.nickname || mon.species_name || mon.species || '???';
   const level    = mon.level || 0;
   const hp       = mon.current_hp ?? mon.currentHP ?? 0;
@@ -20,6 +20,7 @@ export default function PokemonCard({ mon, playerName, dead }) {
   const metLevel = mon.met_level ?? mon.metLevel ?? '?';
   const heldItem = mon.held_item || mon.heldItem;
   const hiddenPower = mon.hidden_power || mon.hiddenPower;
+  const friendship = mon.friendship;
 
   return (
     <div className={`poke-card ${alive ? '' : 'dead'}`} onClick={() => setExpanded(e => !e)}>
@@ -34,6 +35,7 @@ export default function PokemonCard({ mon, playerName, dead }) {
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         )}
+        {!img && <div className="poke-sprite-fallback">?</div>}
         <div className="poke-info">
           <div className="poke-nickname">{nickname}</div>
           <div className="poke-species">{species}</div>
@@ -58,6 +60,7 @@ export default function PokemonCard({ mon, playerName, dead }) {
           {nature && <Detail label="Nature" value={nature} />}
           {heldItem && <Detail label="Held Item" value={heldItem} />}
           {hiddenPower && <Detail label="Hidden Power" value={hiddenPower} />}
+          {friendship !== undefined && friendship !== null && <Detail label="Friendship" value={friendship} />}
           {mon.isShiny && <Detail label="Shiny" value="Yes" />}
           {ivs && <StatBlock title="IVs" stats={ivs} />}
           {evs && <StatBlock title="EVs" stats={evs} />}

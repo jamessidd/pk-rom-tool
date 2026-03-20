@@ -12,6 +12,21 @@ import {
   getSyncUrl, setSyncUrl as saveSync,
 } from './utils/api';
 
+function mergeLocalDetails(base, details, routeLabel) {
+  return {
+    ...base,
+    ...details,
+    routeName: routeLabel || base.routeName || base.route_name,
+    route_name: routeLabel || base.route_name || base.routeName,
+    metLocationName:
+      details?.metLocationName ||
+      details?.met_location_name ||
+      base.metLocationName ||
+      base.met_location_name ||
+      routeLabel,
+  };
+}
+
 export default function App() {
   const [playerName, setPlayerName] = useState(getPlayerName());
   const [localUrl, setLocalUrl]     = useState(getLocalUrl());
@@ -40,10 +55,9 @@ export default function App() {
 
   const enrichedSoloRoutes = soloRoutes.map(route => ({
     ...route,
-    pokemon: (route.pokemon || []).map(mon => ({
-      ...mon,
-      ...(localPartyByPersonality.get(mon.personality) || {}),
-    })),
+    pokemon: (route.pokemon || []).map(mon =>
+      mergeLocalDetails(mon, localPartyByPersonality.get(mon.personality), route.locationName)
+    ),
   }));
 
   const enrichedRoomPairs = roomPairs.map(pair => {
@@ -55,6 +69,7 @@ export default function App() {
         ...mon,
         ...snapMon,
         route_name: pair.route_name,
+        routeName: pair.route_name,
         met_location_name: snapMon?.met_location_name || pair.route_name,
       };
     });
