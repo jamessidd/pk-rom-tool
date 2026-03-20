@@ -108,6 +108,7 @@ const EXACT_ALIASES = {
   Dudunsprc: 'dudunsparce',
 };
 
+const POKEAPI_DATA_CACHE = new Map();
 const POKEAPI_CACHE = new Map();
 
 function tidySpeciesName(name = '') {
@@ -152,28 +153,56 @@ export function spriteCandidates(speciesName = '') {
   return [...new Set(candidates)];
 }
 
+function extractBaseStats(data) {
+  if (!data?.stats) return null;
+  const map = {};
+  let total = 0;
+  for (const s of data.stats) {
+    const val = s.base_stat ?? 0;
+    total += val;
+    switch (s.stat?.name) {
+      case 'hp': map.hp = val; break;
+      case 'attack': map.attack = val; break;
+      case 'defense': map.defense = val; break;
+      case 'special-attack': map.specialAttack = val; break;
+      case 'special-defense': map.specialDefense = val; break;
+      case 'speed': map.speed = val; break;
+    }
+  }
+  map.total = total;
+  return map;
+}
+
+async function fetchPokeApiData(speciesName) {
+  for (const candidate of spriteCandidates(speciesName)) {
+    try {
+      const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${candidate}`);
+      if (!response.ok) continue;
+      const data = await response.json();
+      return {
+        sprite: data?.sprites?.front_default ||
+          data?.sprites?.other?.['official-artwork']?.front_default || null,
+        baseStats: extractBaseStats(data),
+      };
+    } catch {
+      // Try next candidate
+    }
+  }
+  return { sprite: null, baseStats: null };
+}
+
+export async function resolvePokeApiData(speciesName) {
+  if (!speciesName) return { sprite: null, baseStats: null };
+  if (POKEAPI_DATA_CACHE.has(speciesName)) return POKEAPI_DATA_CACHE.get(speciesName);
+  const promise = fetchPokeApiData(speciesName);
+  POKEAPI_DATA_CACHE.set(speciesName, promise);
+  return promise;
+}
+
 export async function resolvePokeApiSprite(speciesName) {
   if (!speciesName) return null;
   if (POKEAPI_CACHE.has(speciesName)) return POKEAPI_CACHE.get(speciesName);
-
-  const promise = (async () => {
-    for (const candidate of spriteCandidates(speciesName)) {
-      try {
-        const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${candidate}`);
-        if (!response.ok) continue;
-        const data = await response.json();
-        return (
-          data?.sprites?.front_default ||
-          data?.sprites?.other?.['official-artwork']?.front_default ||
-          null
-        );
-      } catch {
-        // Try next candidate
-      }
-    }
-    return null;
-  })();
-
+  const promise = resolvePokeApiData(speciesName).then(d => d.sprite);
   POKEAPI_CACHE.set(speciesName, promise);
   return promise;
 }

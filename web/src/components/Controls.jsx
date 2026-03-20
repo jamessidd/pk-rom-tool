@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getTrainerSpriteUrl } from './TrainerSpritePicker';
 
 export default function Controls({
   playerName, onNameChange,
@@ -8,8 +9,10 @@ export default function Controls({
   onCreate, onJoin, onSolo,
   mode, error, onOpenRouteManager,
   collapsed, onToggleCollapse,
+  trainerSpriteId, onOpenSpritePicker,
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const spriteUrl = getTrainerSpriteUrl(trainerSpriteId);
 
   if (collapsed) {
     return (
@@ -34,6 +37,17 @@ export default function Controls({
         <span className="ctrl-label">Display Name</span>
         <input value={playerName} onChange={e => onNameChange(e.target.value)} placeholder="Your name" />
       </label>
+
+      <div className="ctrl-sprite-row">
+        <span className="ctrl-label">Trainer Sprite</span>
+        <button className="ctrl-sprite-btn" onClick={onOpenSpritePicker}>
+          {spriteUrl ? (
+            <img src={spriteUrl} alt="Trainer" className="ctrl-sprite-preview" />
+          ) : (
+            <span className="ctrl-sprite-none">Choose</span>
+          )}
+        </button>
+      </div>
 
       <div className="ctrl-actions">
         {mode !== 'room' ? (

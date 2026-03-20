@@ -1,9 +1,21 @@
-export default function StatusBar({ localConnected, syncConnected, mode, roomCode }) {
+export default function StatusBar({ localConnected, syncConnected, mode, roomCode, gameInfo }) {
+  const gameName = gameInfo?.game?.name;
+  const gameVersion = gameInfo?.game?.version;
+  const gen = gameInfo?.game?.generation;
+  const hasGame = gameName && gameName !== 'None';
+
   return (
     <header className="status-bar">
       <div className="brand">
         <h1>Soul Link</h1>
         <span className="brand-sub">PK ROM Tool</span>
+        {hasGame && (
+          <span className="brand-game">
+            {gameName}
+            {gameVersion && gameVersion !== 'None' && ` — ${gameVersion}`}
+            {gen > 0 && <span className="brand-gen">Gen {gen}</span>}
+          </span>
+        )}
       </div>
       <div className="indicators">
         <Pill label="Tracker" ok={localConnected} />

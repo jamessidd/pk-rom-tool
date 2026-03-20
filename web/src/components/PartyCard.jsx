@@ -1,4 +1,4 @@
-import useSprite from '../hooks/useSprite';
+import usePokemonData from '../hooks/usePokemonData';
 import TypeBadge from './TypeBadge';
 
 function hpColor(ratio) {
@@ -7,23 +7,31 @@ function hpColor(ratio) {
   return '#ef4444';
 }
 
+function statColor(value, max) {
+  const ratio = value / max;
+  if (ratio >= 0.75) return '#34d399';
+  if (ratio >= 0.5) return '#60a5fa';
+  if (ratio >= 0.35) return '#fbbf24';
+  return '#ef4444';
+}
+
 export default function PartyCard({ mon, routeName }) {
-  const species  = mon.species_name || mon.species || '';
-  const img = useSprite(species);
-  const nickname = mon.nickname || species || '???';
-  const level    = mon.level || 0;
-  const hp       = mon.current_hp ?? mon.currentHP ?? 0;
-  const maxHp    = mon.max_hp ?? mon.maxHP ?? 0;
-  const types    = mon.types || [];
-  const alive    = mon.alive !== undefined ? mon.alive : hp > 0;
-  const hasHp    = maxHp > 0;
-  const ivs      = mon.ivs || mon.IVs;
-  const evs      = mon.evs || mon.EVs;
-  const nature   = mon.nature;
-  const heldItem = mon.held_item || mon.heldItem;
+  const species    = mon.species_name || mon.species || '';
+  const { sprite: img, baseStats } = usePokemonData(species);
+  const nickname   = mon.nickname || species || '???';
+  const level      = mon.level || 0;
+  const hp         = mon.current_hp ?? mon.currentHP ?? 0;
+  const maxHp      = mon.max_hp ?? mon.maxHP ?? 0;
+  const types      = mon.types || [];
+  const alive      = mon.alive !== undefined ? mon.alive : hp > 0;
+  const hasHp      = maxHp > 0;
+  const ivs        = mon.ivs || mon.IVs;
+  const evs        = mon.evs || mon.EVs;
+  const nature     = mon.nature;
+  const heldItem   = mon.held_item || mon.heldItem;
   const friendship = mon.friendship;
-  const hpRatio  = maxHp > 0 ? hp / maxHp : 0;
-  const route    = routeName || mon.met_location_name || mon.metLocationName || mon.route_name || mon.routeName || '';
+  const hpRatio    = maxHp > 0 ? hp / maxHp : 0;
+  const route      = routeName || mon.met_location_name || mon.metLocationName || mon.route_name || mon.routeName || '';
 
   return (
     <div className={`pc ${alive ? '' : 'pc-dead'}`}>
@@ -75,6 +83,7 @@ export default function PartyCard({ mon, routeName }) {
       </div>
 
       {(ivs || evs) && <StatBars ivs={ivs} evs={evs} />}
+      {baseStats && <BaseStatChart stats={baseStats} />}
     </div>
   );
 }
@@ -99,6 +108,10 @@ function StatBars({ ivs, evs }) {
 
   return (
     <div className="sb">
+      <div className="sb-header">
+        <span className="sb-header-label">IV</span>
+        <span className="sb-header-label">EV</span>
+      </div>
       {stats.map(([label, iv, ev]) => (
         <div key={label} className="sb-row">
           <span className="sb-label">{label}</span>
@@ -122,10 +135,40 @@ function StatBars({ ivs, evs }) {
           </span>
         </div>
       ))}
-      <div className="sb-legend">
-        <span className="sb-legend-iv">IV</span>
-        <span className="sb-legend-ev">EV</span>
-      </div>
+    </div>
+  );
+}
+
+const BST_MAX = 255;
+
+function BaseStatChart({ stats }) {
+  const rows = [
+    ['HP',  stats.hp],
+    ['ATK', stats.attack],
+    ['DEF', stats.defense],
+    ['SPA', stats.specialAttack],
+    ['SPD', stats.specialDefense],
+    ['SPE', stats.speed],
+  ];
+
+  return (
+    <div className="bst">
+      <div className="bst-title">Base Stats <span className="bst-total">{stats.total}</span></div>
+      {rows.map(([label, val]) => (
+        <div key={label} className="bst-row">
+          <span className="bst-label">{label}</span>
+          <span className="bst-val">{val}</span>
+          <div className="bst-track">
+            <div
+              className="bst-fill"
+              style={{
+                width: `${Math.min(100, (val / BST_MAX) * 100)}%`,
+                background: statColor(val, BST_MAX),
+              }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

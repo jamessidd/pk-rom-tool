@@ -34,6 +34,9 @@ export async function fetchLocalStatus(base) {
 export async function fetchLocalParty(base) {
   return json(`${base}/party`);
 }
+export async function fetchLocalTrainer(base) {
+  return json(`${base}/trainer`);
+}
 export async function fetchLocalSoulLink(base) {
   return json(`${base}/soullink/state`);
 }
@@ -81,6 +84,9 @@ export async function reassignRoute(syncBase, code, playerId, route, personality
     body: JSON.stringify({ player_id: playerId, route, personality }),
   });
 }
+
+export function getTrainerSprite() { return stored('pkrom-trainer-sprite', ''); }
+export function setTrainerSprite(s) { store('pkrom-trainer-sprite', s); }
 
 export function getSoloAssignments() {
   try { return JSON.parse(localStorage.getItem('pkrom-solo-assignments') || '{}'); } catch { return {}; }

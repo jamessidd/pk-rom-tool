@@ -5,6 +5,7 @@ import PartyGrid from './components/PartyGrid';
 import RouteLinkList, { SoloRouteLinkList } from './components/RouteLinkList';
 import EventFeed from './components/EventFeed';
 import RouteManager from './components/RouteManager';
+import TrainerSpritePicker, { getTrainerSpriteUrl } from './components/TrainerSpritePicker';
 import useLocalTracker from './hooks/useLocalTracker';
 import useRoom from './hooks/useRoom';
 import {
@@ -12,6 +13,7 @@ import {
   getLocalUrl, setLocalUrl as saveLocal,
   getSyncUrl, setSyncUrl as saveSync,
   getSoloAssignments, setSoloAssignments,
+  getTrainerSprite, setTrainerSprite as saveTrainerSprite,
 } from './utils/api';
 
 function mergeLocalDetails(base, details, routeLabel) {
@@ -71,13 +73,19 @@ export default function App() {
   const [routeManagerOpen, setRouteManagerOpen] = useState(false);
   const [focusRoute, setFocusRoute] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [trainerSpriteId, setTrainerSpriteId] = useState(getTrainerSprite);
+  const [spritePickerOpen, setSpritePickerOpen] = useState(false);
 
-  const { connected: localOk, status, soulLink, party: localParty } = useLocalTracker(localUrl);
+  const { connected: localOk, status, soulLink, party: localParty, trainerInfo } = useLocalTracker(localUrl);
   const room = useRoom(syncUrl, playerName, status, soulLink, localParty);
 
   function handleNameChange(n)     { setPlayerName(n); saveName(n); }
   function handleLocalChange(u)    { setLocalUrl(u);   saveLocal(u); }
   function handleSyncChange(u)     { setSyncUrl(u);    saveSync(u); }
+  function handleSpriteChange(id)  { setTrainerSpriteId(id); saveTrainerSprite(id); }
+
+  const resolvedTrainerName = trainerInfo?.name || playerName || 'You';
+  const trainerSpriteUrl = getTrainerSpriteUrl(trainerSpriteId);
 
   const updateSoloAssignments = useCallback((newAssignments) => {
     _setSoloAssignments(newAssignments);
@@ -150,7 +158,7 @@ export default function App() {
         });
         return { name: p.player_name, playerId: p.player_id, party };
       })
-    : [{ name: playerName || 'You', playerId: getPlayerId(), party: enrichedLocalParty }];
+    : [{ name: resolvedTrainerName, playerId: getPlayerId(), party: enrichedLocalParty, spriteUrl: trainerSpriteUrl }];
 
   const roomLinks = enrichedRoomPairs.map(pair => ({
     route: pair.route,
@@ -178,6 +186,7 @@ export default function App() {
         syncConnected={room.syncConnected}
         mode={room.mode}
         roomCode={room.roomCode}
+        gameInfo={status}
       />
 
       <div className="app-body">
@@ -198,6 +207,8 @@ export default function App() {
           onOpenRouteManager={() => { setFocusRoute(null); setRouteManagerOpen(true); }}
           collapsed={!sidebarOpen}
           onToggleCollapse={() => setSidebarOpen(o => !o)}
+          trainerSpriteId={trainerSpriteId}
+          onOpenSpritePicker={() => setSpritePickerOpen(true)}
         />
 
         <main className="main-area">
@@ -214,7 +225,7 @@ export default function App() {
                 <h2 className="section-title">Party</h2>
                 <div className="party-grids">
                   {trainerParties.map(t => (
-                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={soloRouteMap} />
+                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={soloRouteMap} trainerSprite={t.spriteUrl} />
                   ))}
                 </div>
               </section>
@@ -234,7 +245,7 @@ export default function App() {
                 <h2 className="section-title">Party</h2>
                 <div className="party-grids party-grids-center">
                   {trainerParties.map(t => (
-                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} />
+                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} />
                   ))}
                 </div>
               </section>
@@ -257,7 +268,7 @@ export default function App() {
                 <h2 className="section-title">Party</h2>
                 <div className="party-grids">
                   {trainerParties.map(t => (
-                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} />
+                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} />
                   ))}
                 </div>
               </section>
@@ -272,6 +283,14 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {spritePickerOpen && (
+        <TrainerSpritePicker
+          selected={trainerSpriteId}
+          onSelect={handleSpriteChange}
+          onClose={() => setSpritePickerOpen(false)}
+        />
+      )}
 
       {routeManagerOpen && (() => {
         const playerId = getPlayerId();

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchLocalStatus, fetchLocalSoulLink, fetchLocalParty } from '../utils/api';
+import { fetchLocalStatus, fetchLocalSoulLink, fetchLocalParty, fetchLocalTrainer } from '../utils/api';
 
 export default function useLocalTracker(localUrl) {
   const [connected, setConnected] = useState(false);
   const [status, setStatus]       = useState(null);
   const [soulLink, setSoulLink]   = useState(null);
   const [party, setParty]         = useState([]);
+  const [trainerInfo, setTrainerInfo] = useState(null);
   const intervalRef = useRef(null);
   const detailRef = useRef(null);
 
@@ -27,8 +28,12 @@ export default function useLocalTracker(localUrl) {
   const pollDetails = useCallback(async () => {
     if (!localUrl) return;
     try {
-      const p = await fetchLocalParty(localUrl);
+      const [p, t] = await Promise.all([
+        fetchLocalParty(localUrl),
+        fetchLocalTrainer(localUrl).catch(() => null),
+      ]);
       setParty(Array.isArray(p) ? p : []);
+      if (t) setTrainerInfo(t);
     } catch {
       /* keep previous details */
     }
@@ -45,5 +50,5 @@ export default function useLocalTracker(localUrl) {
     };
   }, [poll, pollDetails]);
 
-  return { connected, status, soulLink, party, refresh: poll };
+  return { connected, status, soulLink, party, trainerInfo, refresh: poll };
 }
