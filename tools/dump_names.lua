@@ -308,21 +308,21 @@ local function run()
     console.log("")
 
     -- ---- ABILITY NAMES ----
-    -- WARNING: These anchor IDs assume standard national-dex ordering
-    -- (which CFRU typically preserves). If your hack reorders abilities,
-    -- update these IDs from confirmed in-game data.
+    -- WARNING: These anchor IDs are verified for Radical Red.
+    -- Other CFRU hacks may reorder ability IDs — update these
+    -- with confirmed in-game data if the scanner fails.
     --
-    -- Primary anchors use Gen 4+ IDs to skip the vanilla table.
+    -- Primary anchor uses a CFRU-only ability (> 77) to skip
+    -- the vanilla Gen 3 table. Verification uses vanilla
+    -- abilities confirmed correct in Radical Red.
     local abilityAnchors = {
-        { id = 92,  name = "Adaptability" },
-        { id = 89,  name = "Download" },
-        { id = 104, name = "Mold Breaker" },
+        { id = 195, name = "Quark Drive" },
     }
     local abilityVerify = {
-        { id = 1,   name = "Stench" },
-        { id = 22,  name = "Intimidate" },
-        { id = 92,  name = "Adaptability" },
-        { id = 104, name = "Mold Breaker" },
+        { id = 18,  name = "Flash Fire" },
+        { id = 46,  name = "Pressure" },
+        { id = 55,  name = "Hustle" },
+        { id = 195, name = "Quark Drive" },
     }
 
     console.log("=== ABILITY NAMES ===")
