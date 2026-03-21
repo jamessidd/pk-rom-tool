@@ -1,4 +1,3 @@
-local gameUtils = require("utils.gameutils")
 local charmaps = require("data.charmaps")
 
 local LocationLookup = {}
@@ -6,12 +5,17 @@ local LocationLookup = {}
 local _cache = nil
 local _scanAttempted = false
 
--- GBA charmap byte values for uppercase letters (0xBB=A .. 0xD4=Z), space=0x00, terminator=0xFF
--- "PALLET TOWN" encoded: P(0xCA) A(0xBB) L(0xC6) L(0xC6) E(0xBF) T(0xCE) ' '(0x00) T(0xCE) O(0xC9) W(0xD1) N(0xC8) FF
-local PALLET_BYTES = {0xCA, 0xBB, 0xC6, 0xC6, 0xBF, 0xCE, 0x00, 0xCE, 0xC9, 0xD1, 0xC8, 0xFF}
 local PALLET_MAPSEC = 0x58 -- 88
 
--- CFRU static fallback: used if ROM scan fails
+-- GBA charmap: A=0xBB..Z=0xD4, a=0xD5..z=0xEE, space=0x00, '.'=0xAD, ''''=0xB4, terminator=0xFF
+-- Build search patterns for "Pallet" in both cases
+local SEARCH_PATTERNS = {
+    { label = "Pallet Town",
+      bytes = {0xCA, 0xD5, 0xE0, 0xE0, 0xD9, 0xE8, 0x00, 0xCE, 0xE3, 0xEB, 0xE2} },
+    { label = "PALLET TOWN",
+      bytes = {0xCA, 0xBB, 0xC6, 0xC6, 0xBF, 0xCE, 0x00, 0xCE, 0xC9, 0xD1, 0xC8} },
+}
+
 local CFRU_FALLBACK = {
     [88]  = "Pallet Town",
     [89]  = "Viridian City",
@@ -24,8 +28,8 @@ local CFRU_FALLBACK = {
     [96]  = "Cinnabar Island",
     [97]  = "Indigo Plateau",
     [98]  = "Saffron City",
-    [99]  = "Route 4",       -- Route 4 PokeCenter fly dup
-    [100] = "Route 10",      -- Route 10 PokeCenter fly dup
+    [99]  = "Route 4",
+    [100] = "Route 10",
     [101] = "Route 1",   [102] = "Route 2",   [103] = "Route 3",
     [104] = "Route 4",   [105] = "Route 5",   [106] = "Route 6",
     [107] = "Route 7",   [108] = "Route 8",   [109] = "Route 9",
@@ -89,88 +93,70 @@ local function isROMPointer(val)
     return val >= 0x08000000 and val < 0x0A000000
 end
 
-local function scanROM()
-    if _scanAttempted then return _cache end
-    _scanAttempted = true
-
-    console.log("[LocationLookup] Scanning ROM for MAPSEC name table...")
-
-    -- Step 1: find "PALLET TOWN" string in ROM (search in 64KB chunks)
-    local palletAddr = nil
-    local patternLen = #PALLET_BYTES
-    local CHUNK = 0x10000
-
-    for base = 0, 0x01FFFFFF - CHUNK, CHUNK do
-        for offset = 0, CHUNK - patternLen do
-            local addr = base + offset
-            local match = true
-            for i = 1, patternLen do
-                if memory.read_u8(addr + i - 1, "ROM") ~= PALLET_BYTES[i] then
-                    match = false
-                    break
-                end
-            end
-            if match then
-                palletAddr = 0x08000000 + addr
+-- Scan a region of ROM for a byte pattern. Yields every ~64KB to keep emulator responsive.
+local function findPattern(pattern, romSize)
+    local patLen = #pattern
+    for addr = 0, romSize - patLen do
+        local match = true
+        for i = 1, patLen do
+            if memory.read_u8(addr + i - 1, "ROM") ~= pattern[i] then
+                match = false
                 break
             end
         end
-        if palletAddr then break end
-    end
-
-    if not palletAddr then
-        console.log("[LocationLookup] Could not find 'PALLET TOWN' in ROM, using fallback table")
-        _cache = CFRU_FALLBACK
-        return _cache
-    end
-
-    console.log(string.format("[LocationLookup] Found 'PALLET TOWN' at 0x%08X", palletAddr))
-
-    -- Step 2: find 4-byte pointer to that string in ROM
-    local b1 = palletAddr & 0xFF
-    local b2 = (palletAddr >> 8) & 0xFF
-    local b3 = (palletAddr >> 16) & 0xFF
-    local b4 = (palletAddr >> 24) & 0xFF
-    local ptrLocations = {}
-
-    for base = 0, 0x01FFFFFF - CHUNK, CHUNK do
-        for offset = 0, CHUNK - 4 do
-            local addr = base + offset
-            if memory.read_u8(addr, "ROM") == b1 and
-               memory.read_u8(addr + 1, "ROM") == b2 and
-               memory.read_u8(addr + 2, "ROM") == b3 and
-               memory.read_u8(addr + 3, "ROM") == b4 then
-                ptrLocations[#ptrLocations + 1] = addr
-            end
+        if match then
+            return addr
+        end
+        if addr % 0x10000 == 0 and emu and emu.frameadvance then
+            emu.frameadvance()
         end
     end
+    return nil
+end
 
+-- Scan ROM for 4-byte pointer to a given absolute ROM address
+local function findPointers(targetAbsAddr, romSize)
+    local b1 = targetAbsAddr & 0xFF
+    local b2 = (targetAbsAddr >> 8) & 0xFF
+    local b3 = (targetAbsAddr >> 16) & 0xFF
+    local b4 = (targetAbsAddr >> 24) & 0xFF
+    local results = {}
+    for addr = 0, romSize - 4 do
+        if memory.read_u8(addr, "ROM") == b1 and
+           memory.read_u8(addr + 1, "ROM") == b2 and
+           memory.read_u8(addr + 2, "ROM") == b3 and
+           memory.read_u8(addr + 3, "ROM") == b4 then
+            results[#results + 1] = addr
+        end
+        if addr % 0x10000 == 0 and emu and emu.frameadvance then
+            emu.frameadvance()
+        end
+    end
+    return results
+end
+
+local function tryFindTable(palletROMAddr, romSize)
+    local ptrLocations = findPointers(palletROMAddr, romSize)
     console.log(string.format("[LocationLookup] Found %d pointer candidates", #ptrLocations))
 
-    -- Step 3: determine table base and struct size
-    -- Pallet Town is at MAPSEC index 0x58 (88).
-    -- Try struct sizes of 4, 8, and 12 bytes.
     for _, ptrOffset in ipairs(ptrLocations) do
-        for _, structSize in ipairs({8, 4, 12}) do
+        for _, structSize in ipairs({8, 4, 12, 16}) do
             local tableBase = ptrOffset - (PALLET_MAPSEC * structSize)
-            if tableBase >= 0 then
-                -- verify: entry 89 (Viridian City) should also be a valid ROM pointer to a name string
-                local nextEntryAddr = tableBase + 89 * structSize
-                local nextPtr = memory.read_u32_le(nextEntryAddr, "ROM")
+            if tableBase >= 0 and tableBase + 255 * structSize < romSize then
+                local nextPtr = memory.read_u32_le(tableBase + 89 * structSize, "ROM")
                 if isROMPointer(nextPtr) then
                     local testName = readGBAString(nextPtr & 0x1FFFFFF)
                     if testName:upper():find("VIRIDIAN") then
                         console.log(string.format(
-                            "[LocationLookup] FOUND name table at ROM+0x%06X (struct size=%d)",
+                            "[LocationLookup] Table found at ROM+0x%06X (stride=%d bytes)",
                             tableBase, structSize
                         ))
 
-                        -- Step 4: dump all entries (MAPSEC 0-255)
                         local locations = {}
                         local count = 0
                         for mapsec = 0, 255 do
                             local entryAddr = tableBase + mapsec * structSize
-                            if entryAddr + 4 <= 0x02000000 then
+                            if entryAddr + 4 <= romSize then
                                 local namePtr = memory.read_u32_le(entryAddr, "ROM")
                                 if isROMPointer(namePtr) then
                                     local name = readGBAString(namePtr & 0x1FFFFFF)
@@ -183,28 +169,63 @@ local function scanROM()
                         end
 
                         console.log(string.format("[LocationLookup] Loaded %d location names from ROM", count))
-                        _cache = locations
-                        return _cache
+                        for mapsec = 88, 98 do
+                            if locations[mapsec] then
+                                console.log(string.format("  [%3d] %s", mapsec, locations[mapsec]))
+                            end
+                        end
+                        return locations
                     end
                 end
             end
         end
     end
+    return nil
+end
 
-    console.log("[LocationLookup] ROM scan could not determine table structure, using fallback")
+local function scanROM()
+    if _scanAttempted then return _cache end
+    _scanAttempted = true
+
+    console.log("[LocationLookup] Scanning ROM for MAPSEC name table...")
+
+    -- Detect ROM size (try reading at decreasing power-of-2 boundaries)
+    local romSize = 0x01000000 -- 16MB default
+    local ok, _ = pcall(function() memory.read_u8(0x01800000, "ROM") end)
+    if ok then romSize = 0x02000000 end -- 32MB
+
+    console.log(string.format("[LocationLookup] ROM size: %dMB", romSize / 0x100000))
+
+    for _, pat in ipairs(SEARCH_PATTERNS) do
+        console.log(string.format("[LocationLookup] Searching for '%s'...", pat.label))
+        local found = findPattern(pat.bytes, romSize)
+        if found then
+            local absAddr = 0x08000000 + found
+            console.log(string.format("[LocationLookup] Found '%s' at 0x%08X", pat.label, absAddr))
+            local locations = tryFindTable(absAddr, romSize)
+            if locations then
+                _cache = locations
+                return _cache
+            end
+        end
+    end
+
+    console.log("[LocationLookup] ROM scan did not find name table, using CFRU fallback")
     _cache = CFRU_FALLBACK
     return _cache
 end
 
 function LocationLookup.init()
-    scanROM()
+    local ok, err = pcall(scanROM)
+    if not ok then
+        console.log("[LocationLookup] Scan error: " .. tostring(err) .. " — using fallback")
+        _cache = CFRU_FALLBACK
+        _scanAttempted = true
+    end
 end
 
 function LocationLookup.getName(id)
-    if not id then
-        return "Unknown"
-    end
-
+    if not id then return "Unknown" end
     local locations = _cache or CFRU_FALLBACK
     return locations[id] or string.format("Location %d", id)
 end
