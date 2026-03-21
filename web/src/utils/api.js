@@ -85,7 +85,7 @@ export async function reassignRoute(syncBase, code, playerId, route, personality
   });
 }
 
-export function getTrainerSprite() { return stored('pkrom-trainer-sprite', ''); }
+export function getTrainerSprite() { return stored('pkrom-trainer-sprite', 'red'); }
 export function setTrainerSprite(s) { store('pkrom-trainer-sprite', s); }
 
 export function getSoloAssignments() {

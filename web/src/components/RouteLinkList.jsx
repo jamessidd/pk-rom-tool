@@ -85,6 +85,12 @@ export function SoloRouteLinkList({ routes, gameName }) {
   );
 }
 
+const SHOWDOWN_ITEMS = 'https://play.pokemonshowdown.com/sprites/itemicons';
+
+function itemSlug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 function EncounterCell({ mon }) {
   const species = mon.species_name || mon.species || '';
   const nickname = mon.nickname || '';
@@ -93,22 +99,34 @@ function EncounterCell({ mon }) {
   const inParty = mon.in_party ?? mon.inParty ?? true;
   const heldItem = mon.held_item || mon.heldItem;
   const hasNickname = nickname && nickname !== species;
+  const hasItem = heldItem && heldItem !== 'None';
 
   return (
     <div className={`et-cell ${!alive ? 'et-cell-dead' : ''}`}>
-      {img ? (
-        <img className="et-sprite" src={img} alt={species} loading="lazy" />
-      ) : (
-        <div className="et-sprite-fb">?</div>
-      )}
+      <div className="et-sprite-wrap">
+        {img ? (
+          <img className="et-sprite" src={img} alt={species} loading="lazy" />
+        ) : (
+          <div className="et-sprite-fb">?</div>
+        )}
+        {hasItem && (
+          <img
+            className="et-item-icon"
+            src={`${SHOWDOWN_ITEMS}/${itemSlug(heldItem)}.png`}
+            alt={heldItem}
+            title={heldItem}
+            loading="lazy"
+            onError={e => { e.currentTarget.style.display = 'none'; }}
+          />
+        )}
+      </div>
       <div className="et-cell-info">
         <span className="et-cell-name">{species || '???'}</span>
         {hasNickname && <span className="et-cell-nick">"{nickname}"</span>}
         <div className="et-cell-tags">
           {!alive && <span className="et-tag-dead">Fallen</span>}
-          {alive && inParty && <span className="et-tag-equipped">Equipped</span>}
+          {alive && inParty && <span className="et-tag-equipped">In Party</span>}
           {alive && !inParty && <span className="et-tag-box">Boxed</span>}
-          {heldItem && heldItem !== 'None' && <span className="et-tag-item">{heldItem}</span>}
         </div>
       </div>
     </div>

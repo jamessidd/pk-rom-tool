@@ -67,8 +67,8 @@ export default function PartyGrid({ trainerName, party, routeMap, trainerSprite,
   });
 
   return (
-    <div className="pg">
-      <div className="pg-banner glass-card">
+    <div className="pg glass-card pg-group">
+      <div className="pg-banner">
         {trainerSprite && (
           <img className="pg-banner-sprite" src={trainerSprite} alt="" />
         )}

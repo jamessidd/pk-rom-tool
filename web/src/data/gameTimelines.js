@@ -121,12 +121,30 @@ const RADICAL_RED_TIMELINE = [
 ];
 
 const GAME_TIMELINES = {
-  'radical red': RADICAL_RED_TIMELINE,
-  'fire red':    RADICAL_RED_TIMELINE,
-  'firered':     RADICAL_RED_TIMELINE,
+  'radical red':          RADICAL_RED_TIMELINE,
+  'radicalred':           RADICAL_RED_TIMELINE,
+  'pokemon radical red':  RADICAL_RED_TIMELINE,
+  'pokemonradicalred':    RADICAL_RED_TIMELINE,
+  'fire red':             RADICAL_RED_TIMELINE,
+  'firered':              RADICAL_RED_TIMELINE,
+  'pokemon fire red':     RADICAL_RED_TIMELINE,
+  'pokemon firered':      RADICAL_RED_TIMELINE,
+  'pokemonfirered':       RADICAL_RED_TIMELINE,
 };
+
+function normalizeGameName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 export function getTimeline(gameName) {
   if (!gameName) return null;
-  return GAME_TIMELINES[gameName.toLowerCase().trim()] || null;
+  const raw = gameName.toLowerCase().trim();
+  if (GAME_TIMELINES[raw]) return GAME_TIMELINES[raw];
+  const normalized = normalizeGameName(gameName);
+  if (GAME_TIMELINES[normalized]) return GAME_TIMELINES[normalized];
+  const nospace = normalized.replace(/\s/g, '');
+  if (GAME_TIMELINES[nospace]) return GAME_TIMELINES[nospace];
+  const noPokemon = normalized.replace(/^pokemon\s*/, '');
+  if (GAME_TIMELINES[noPokemon]) return GAME_TIMELINES[noPokemon];
+  return null;
 }

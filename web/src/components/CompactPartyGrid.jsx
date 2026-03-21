@@ -11,7 +11,7 @@ export default function CompactPartyGrid({ trainerName, party, trainerSprite, mo
   }
 
   return (
-    <div className="cpg">
+    <div className="cpg glass-card">
       <div className="cpg-banner">
         {trainerSprite && (
           <img className="cpg-banner-sprite" src={trainerSprite} alt="" />
