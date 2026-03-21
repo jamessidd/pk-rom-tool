@@ -87,10 +87,12 @@ export function SoloRouteLinkList({ routes, gameName }) {
 
 function EncounterCell({ mon }) {
   const species = mon.species_name || mon.species || '';
-  const name = mon.nickname || species || '???';
+  const nickname = mon.nickname || '';
   const img = useSprite(species);
   const alive = mon.alive !== undefined ? mon.alive : true;
   const inParty = mon.in_party ?? mon.inParty ?? true;
+  const heldItem = mon.held_item || mon.heldItem;
+  const hasNickname = nickname && nickname !== species;
 
   return (
     <div className={`et-cell ${!alive ? 'et-cell-dead' : ''}`}>
@@ -100,9 +102,14 @@ function EncounterCell({ mon }) {
         <div className="et-sprite-fb">?</div>
       )}
       <div className="et-cell-info">
-        <span className="et-cell-name">{name}</span>
-        {!alive && <span className="et-tag-dead">Fallen</span>}
-        {alive && !inParty && <span className="et-tag-box">Boxed</span>}
+        <span className="et-cell-name">{species || '???'}</span>
+        {hasNickname && <span className="et-cell-nick">"{nickname}"</span>}
+        <div className="et-cell-tags">
+          {!alive && <span className="et-tag-dead">Fallen</span>}
+          {alive && inParty && <span className="et-tag-equipped">Equipped</span>}
+          {alive && !inParty && <span className="et-tag-box">Boxed</span>}
+          {heldItem && heldItem !== 'None' && <span className="et-tag-item">{heldItem}</span>}
+        </div>
       </div>
     </div>
   );

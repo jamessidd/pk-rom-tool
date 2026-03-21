@@ -39,11 +39,16 @@ export default function CompactPartyCard({ mon }) {
   const hpRatio    = maxHp > 0 ? hp / maxHp : 0;
   const statusRaw  = mon.status;
   const statusInfo = statusRaw && statusRaw !== 'Healthy' ? STATUS_META[statusRaw] : null;
+  const route      = mon.met_location_name || mon.metLocationName || mon.route_name || mon.routeName || '';
 
   return (
     <div className={`cpc ${alive ? '' : 'cpc-dead'}`}>
       <div className="cpc-header" style={{ background: typeGradient(types) }}>
-        <span className="cpc-level">{level}</span>
+        <div className="cpc-level-block">
+          <span className="cpc-level-label">Lv.</span>
+          <span className="cpc-level">{level}</span>
+        </div>
+        {route && <span className="cpc-route">{route}</span>}
         <div className="cpc-sprite-anchor">
           {img ? (
             <img className="cpc-sprite" src={img} alt={species} loading="lazy"
@@ -55,7 +60,7 @@ export default function CompactPartyCard({ mon }) {
       </div>
       <div className="cpc-body">
         <div className="cpc-name">{nickname}</div>
-        {species !== nickname && <div className="cpc-species">{species}</div>}
+        <div className="cpc-species">{species !== nickname ? species : '\u00A0'}</div>
         <div className="cpc-chips">
           {types.map(t => <TypeBadge key={t} type={t} />)}
           {nature && <span className="pc-nature">{nature}</span>}

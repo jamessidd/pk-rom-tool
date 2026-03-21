@@ -14,10 +14,12 @@ export default function EventFeed({ events }) {
 
 function FeedItem({ event }) {
   const mon = event.pokemon || event;
-  const name = mon.nickname || mon.species_name || mon.species || '???';
+  const species = mon.species_name || mon.species || '';
+  const nickname = mon.nickname || '';
   const location = mon.met_location_name || mon.metLocationName || '';
   const player = event.player_name || '';
   const type = event.type || '';
+  const hasNickname = nickname && nickname !== species;
 
   let icon = '';
   let cls = '';
@@ -32,7 +34,8 @@ function FeedItem({ event }) {
       <div className="feed-body">
         <span className="feed-player">{player}</span>
         {' '}{type}{' '}
-        <strong>{name}</strong>
+        <strong>{species || '???'}</strong>
+        {hasNickname && <span className="feed-nick"> "{nickname}"</span>}
         {location && <span className="feed-loc"> — {location}</span>}
       </div>
     </div>

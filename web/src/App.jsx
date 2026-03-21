@@ -92,7 +92,7 @@ export default function App() {
 
   const resolvedTrainerName = trainerInfo?.name || playerName || 'You';
   const trainerSpriteUrl = getTrainerSpriteUrl(trainerSpriteId);
-  const gameName = status?.game?.name;
+  const gameName = status?.game?.name || (getMockPlayerCount() > 0 ? 'Radical Red' : null);
 
   const updateSoloAssignments = useCallback((newAssignments) => {
     _setSoloAssignments(newAssignments);
@@ -254,7 +254,7 @@ export default function App() {
       />
 
       <main className="main-area">
-        {!localOk && (
+        {!localOk && !isMockMode && (
           <div className="empty-state">
             <h2>Waiting for Local Tracker</h2>
             <p>Start BizHawk with the pk-rom-tool script, then refresh.</p>
@@ -281,7 +281,7 @@ export default function App() {
           </div>
         )}
 
-        {localOk && isMulti && (() => {
+        {(localOk || isMockMode) && isMulti && (() => {
           const timeline = getTimeline(gameName);
           const myParty = finalTrainerParties[0];
           const friendParties = finalTrainerParties.slice(1);

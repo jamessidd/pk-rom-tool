@@ -79,7 +79,7 @@ export default function PartyCard({ mon, routeName }) {
           <span className="pc-nickname">{nickname}</span>
           {mon.isShiny && <span className="pc-shiny">&#9733;</span>}
         </div>
-        {species !== nickname && <div className="pc-species">{species}</div>}
+        <div className="pc-species">{species !== nickname ? species : '\u00A0'}</div>
         <div className="pc-chips">
           {types.map(t => <TypeBadge key={t} type={t} />)}
           {nature && <span className="pc-nature">{nature}</span>}

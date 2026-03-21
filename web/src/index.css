@@ -250,6 +250,7 @@ button:active { transform:scale(0.97); }
 .pg-banner {
   display:flex; align-items:center; gap:12px;
   padding:10px 14px; margin-bottom:10px;
+  min-height:72px;
 }
 .pg-banner-sprite {
   height:72px; image-rendering:pixelated; object-fit:contain; flex-shrink:0;
@@ -570,6 +571,19 @@ button:active { transform:scale(0.97); }
 .et-tag-dead { background:rgba(239,68,68,0.15); color:#fca5a5; }
 .et-tag-box { background:rgba(255,255,255,0.06); color:#94a3b8; }
 .et-tag-party { background:rgba(34,197,94,0.12); color:#86efac; }
+.et-tag-equipped { background:rgba(59,130,246,0.12); color:#93c5fd; }
+.et-tag-item {
+  font-size:7px; font-weight:600; color:var(--gold);
+  background:rgba(245,158,11,0.08); padding:1px 4px; border-radius:3px;
+  display:inline-block; margin-left:4px;
+}
+.et-cell-nick {
+  font-size:9px; color:var(--text-muted); font-style:italic;
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.et-cell-tags {
+  display:flex; gap:3px; flex-wrap:wrap; align-items:center; margin-top:1px;
+}
 
 /* ---- Event Feed ---- */
 .feed-empty { color:var(--text-muted); font-size:13px; font-style:italic; }
@@ -590,6 +604,7 @@ button:active { transform:scale(0.97); }
 .feed-body { flex:1; }
 .feed-player { font-weight:600; color:var(--accent); }
 .feed-loc { color:var(--text-muted); }
+.feed-nick { color:var(--text-muted); font-style:italic; font-weight:400; }
 
 /* ---- Route Manager Modal ---- */
 .rm-backdrop {
@@ -884,31 +899,48 @@ button:active { transform:scale(0.97); }
 /* ---- Compact Party Card ---- */
 .cpc {
   width:100%;
+  min-height:130px;
   position:relative;
   background:var(--glass-bg);
   border:1px solid var(--glass-border);
   border-radius:var(--radius-sm);
   overflow:hidden;
   transition:border-color .15s;
+  display:flex; flex-direction:column;
 }
 .cpc:hover { border-color:rgba(255,255,255,0.12); }
 .cpc-dead { opacity:.5; filter:saturate(0.2); }
 
 .cpc-empty {
   display:flex; align-items:center; justify-content:center;
-  min-height:80px; border-style:dashed; opacity:.2;
+  min-height:130px; border-style:dashed; opacity:.2;
 }
 
 .cpc-header {
   position:relative;
   padding:4px 6px 10px;
   border-radius:var(--radius-sm) var(--radius-sm) 0 0;
-  min-height:32px;
+  min-height:40px;
+}
+.cpc-level-block {
+  display:flex; align-items:baseline; gap:2px;
+  z-index:1; position:relative;
+}
+.cpc-level-label {
+  font-size:7px; font-weight:600; text-transform:uppercase;
+  color:rgba(255,255,255,0.55); letter-spacing:.3px;
 }
 .cpc-level {
   font-size:16px; font-weight:800; color:#fff;
   text-shadow:0 1px 3px rgba(0,0,0,0.3);
-  z-index:1; position:relative;
+}
+.cpc-route {
+  display:block;
+  font-size:7px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.3px; color:rgba(255,255,255,0.45);
+  z-index:1; position:relative; margin-top:1px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  max-width:60%;
 }
 .cpc-sprite-anchor {
   position:absolute;
@@ -930,6 +962,7 @@ button:active { transform:scale(0.97); }
 
 .cpc-body {
   padding:4px 6px 6px;
+  flex:1; display:flex; flex-direction:column;
 }
 .cpc-name {
   font-size:11px; font-weight:700; line-height:1.2;
@@ -937,6 +970,7 @@ button:active { transform:scale(0.97); }
 }
 .cpc-species {
   font-size:8px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.2px;
+  min-height:11px;
 }
 .cpc-chips {
   display:flex; gap:2px; margin-top:2px; flex-wrap:wrap; align-items:center;
@@ -945,7 +979,7 @@ button:active { transform:scale(0.97); }
 .cpc-chips .pc-nature { font-size:7px; padding:1px 4px; }
 .cpc-chips .pc-status { font-size:7px; padding:1px 4px; }
 
-.cpc-hp-row { display:flex; align-items:center; gap:4px; margin-top:3px; }
+.cpc-hp-row { display:flex; align-items:center; gap:4px; margin-top:auto; padding-top:3px; }
 .cpc-hp-track {
   flex:1; height:3px; background:rgba(255,255,255,0.06);
   border-radius:2px; overflow:hidden;
