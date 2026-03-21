@@ -74,6 +74,13 @@ end
 
 local function isROMPtr(v) return v >= 0x08000000 and v < 0x0A000000 end
 
+local function isLocationName(s)
+    if #s == 0 or #s > 22 then return false end
+    if s:match("^%s") then return false end
+    if not s:match("^[A-Z0-9]") then return false end
+    return true
+end
+
 local function yield()
     if emu and emu.frameadvance then emu.frameadvance() end
 end
@@ -178,19 +185,25 @@ local function run()
                     if base then
                         console.log(string.format("[scan] TABLE FOUND at ROM+0x%06X (stride=%d)", base, stride))
 
-                        -- Collect all entries
+                        -- Collect entries, filtering out descriptions and garbage
                         local entries = {}
+                        local skipped = 0
                         for m = 0, 255 do
                             local ea = base + m * stride + nameOff
                             if ea + 4 <= romSize then
                                 local np = memory.read_u32_le(ea, "ROM")
                                 if isROMPtr(np) then
                                     local name = readStr(np & 0x1FFFFFF)
-                                    if name ~= "" then
+                                    if isLocationName(name) then
                                         entries[#entries + 1] = { id = m, name = name }
+                                    elseif name ~= "" then
+                                        skipped = skipped + 1
                                     end
                                 end
                             end
+                        end
+                        if skipped > 0 then
+                            console.log(string.format("[scan] Filtered out %d non-name entries (descriptions/garbage)", skipped))
                         end
 
                         -- Write to file
