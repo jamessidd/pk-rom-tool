@@ -112,6 +112,13 @@ function MemoryReader.getEnemyPartyData()
     if not MemoryReader.currentGame.addresses.enemyPartyAddr then return nil end
 
     local gameUtils = require("utils.gameutils")
+
+    local flagsAddr = MemoryReader.currentGame.addresses.gBattleTypeFlags
+    if flagsAddr then
+        local flags = gameUtils.read32(gameUtils.hexToNumber(flagsAddr))
+        if flags == 0 then return nil end
+    end
+
     local enemyAddr = gameUtils.hexToNumber(MemoryReader.currentGame.addresses.enemyPartyAddr)
     return MemoryReader.partyReader:readEnemyParty({enemyPartyAddr = enemyAddr})
 end
