@@ -353,6 +353,7 @@ export default function App() {
                 />
               </section>
               <aside className="multi-battle-col">
+                <h3 className="section-title">Battle</h3>
                 {inBattle
                   ? <BattleCard enemyParty={enemyParty} />
                   : <div className="multi-battle-placeholder"><span>No active battle</span></div>

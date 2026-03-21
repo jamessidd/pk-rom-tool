@@ -77,19 +77,22 @@ export default function PartyGrid({ trainerName, party, routeMap, trainerSprite,
   return (
     <div className="pg glass-card pg-group">
       {hasCarousel ? (
-        <div className="pg-accordion">
+        <div className="pg-trainer-tabs">
           {allTrainers.map(t => {
             const isActive = t.playerId === activePlayerId;
             return (
               <button
                 key={t.playerId}
-                className={`pg-acc-tab ${isActive ? 'pg-acc-active' : ''}`}
+                className={`pg-tab ${isActive ? 'pg-tab-active' : ''}`}
                 onClick={() => handleSelect(t.playerId)}
               >
                 {t.spriteUrl && (
-                  <img className="pg-acc-sprite" src={t.spriteUrl} alt="" />
+                  <img className="pg-tab-sprite" src={t.spriteUrl} alt="" />
                 )}
-                <span className="pg-acc-name">{t.name}</span>
+                <div className="pg-tab-info">
+                  <span className="pg-tab-name">{t.name}</span>
+                  <span className="pg-tab-label">View Party</span>
+                </div>
               </button>
             );
           })}
