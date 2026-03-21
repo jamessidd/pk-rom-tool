@@ -28,6 +28,15 @@ function CFRUPartyReader:readParty(addresses)
     return party
 end
 
+function CFRUPartyReader:readEnemyParty(addresses)
+    if not addresses.enemyPartyAddr then return {} end
+    local party = {}
+    for i = 1, 6 do
+        party[i] = self:readPokemon(addresses.enemyPartyAddr, i)
+    end
+    return party
+end
+
 function CFRUPartyReader:readPokemon(startAddress, slot)
     local pokemonStart = startAddress + 100 * (slot - 1)
     

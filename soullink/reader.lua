@@ -163,4 +163,58 @@ function SoulLinkReader:readParty(memoryReader)
     return self:readFallbackParty(memoryReader)
 end
 
+function SoulLinkReader:readEnemyParty(memoryReader)
+    if not memoryReader or not memoryReader.currentGame then
+        return {}
+    end
+    local gameData = memoryReader.currentGame
+    if not gameData.addresses.enemyPartyAddr then return {} end
+
+    local enemyAddr = gameUtils.hexToNumber(gameData.addresses.enemyPartyAddr)
+    local snapshot = {}
+
+    for slot = 1, 6 do
+        local pokemonStart = enemyAddr + 100 * (slot - 1)
+        local personality = gameUtils.read32(pokemonStart)
+        if personality ~= 0 then
+            local speciesID = gameUtils.read16(pokemonStart + 32)
+            if speciesID > 0 and speciesID < 2000 then
+                local speciesMeta = self:getSpeciesMeta(speciesID)
+                local nickname = self:readNickname(pokemonStart)
+
+                local heldItemId = gameUtils.read16(pokemonStart + 34)
+                local move1 = gameUtils.read16(pokemonStart + 44)
+                local move2 = gameUtils.read16(pokemonStart + 46)
+                local move3 = gameUtils.read16(pokemonStart + 48)
+                local move4 = gameUtils.read16(pokemonStart + 50)
+
+                local moves = {}
+                local moveNames = {}
+                if move1 > 0 then table.insert(moves, move1); table.insert(moveNames, pokemonData.getMoveName(move1)) end
+                if move2 > 0 then table.insert(moves, move2); table.insert(moveNames, pokemonData.getMoveName(move2)) end
+                if move3 > 0 then table.insert(moves, move3); table.insert(moveNames, pokemonData.getMoveName(move3)) end
+                if move4 > 0 then table.insert(moves, move4); table.insert(moveNames, pokemonData.getMoveName(move4)) end
+
+                snapshot[slot] = {
+                    slot = slot,
+                    personality = personality,
+                    speciesId = speciesID,
+                    species = speciesMeta.species,
+                    nickname = nickname,
+                    level = gameUtils.read8(pokemonStart + 84),
+                    currentHP = gameUtils.read16(pokemonStart + 86),
+                    maxHP = gameUtils.read16(pokemonStart + 88),
+                    heldItemId = heldItemId,
+                    moves = moves,
+                    moveNames = moveNames,
+                    isShiny = false,
+                    types = speciesMeta.types,
+                }
+            end
+        end
+    end
+
+    return snapshot
+end
+
 return SoulLinkReader

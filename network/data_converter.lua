@@ -103,6 +103,65 @@ function DataConverter.getPartyData(memoryReader)
     return apiParty
 end
 
+function DataConverter.getEnemyPartyData(memoryReader)
+    local party = memoryReader.getEnemyPartyData()
+    if not party then return {} end
+
+    local apiParty = {}
+    local pokemonData = require("readers.pokemondata")
+
+    for i = 1, 6 do
+        local pokemon = party[i]
+        if pokemon and pokemon.speciesID > 0 then
+            local moves = {}
+            local moveNames = {}
+            if pokemon.move1 and pokemon.move1 > 0 then
+                table.insert(moves, pokemon.move1)
+                table.insert(moveNames, pokemonData.getMoveName(pokemon.move1))
+            end
+            if pokemon.move2 and pokemon.move2 > 0 then
+                table.insert(moves, pokemon.move2)
+                table.insert(moveNames, pokemonData.getMoveName(pokemon.move2))
+            end
+            if pokemon.move3 and pokemon.move3 > 0 then
+                table.insert(moves, pokemon.move3)
+                table.insert(moveNames, pokemonData.getMoveName(pokemon.move3))
+            end
+            if pokemon.move4 and pokemon.move4 > 0 then
+                table.insert(moves, pokemon.move4)
+                table.insert(moveNames, pokemonData.getMoveName(pokemon.move4))
+            end
+
+            local types = {pokemon.type1Name}
+            if pokemon.type2Name and pokemon.type2Name ~= pokemon.type1Name then
+                table.insert(types, pokemon.type2Name)
+            end
+
+            table.insert(apiParty, {
+                nickname = pokemon.nickname or pokemon.speciesName,
+                species = pokemon.speciesName,
+                speciesId = pokemon.speciesID,
+                personality = pokemon.personality,
+                level = pokemon.level,
+                nature = pokemon.natureName,
+                currentHP = pokemon.curHP,
+                maxHP = pokemon.maxHP,
+                moves = moves,
+                moveNames = moveNames,
+                heldItem = pokemon.heldItem,
+                heldItemId = pokemon.heldItemId,
+                status = DataConverter.getStatusName(pokemon.status),
+                ability = pokemon.abilityName,
+                abilityId = pokemon.abilityID,
+                isShiny = pokemon.isShiny or false,
+                types = types
+            })
+        end
+    end
+
+    return apiParty
+end
+
 function DataConverter.getStatusName(statusValue)
     if not statusValue or statusValue == 0 then
         return "Healthy"

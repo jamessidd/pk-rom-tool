@@ -64,6 +64,7 @@ function HttpServer:start()
     console.log("Pokemon Memory Reader API server started on http://" .. self.host .. ":" .. self.port)
     console.log("Available endpoints:")
     console.log("  GET /party - Get current party information")
+    console.log("  GET /enemy - Get opponent party (during battles)")
     console.log("  GET /player - Get current player information")
     console.log("  GET /bag - Get current bag information")
     console.log("  GET /soullink/state - Get local Soul Link state")
@@ -153,6 +154,8 @@ function HttpServer:handleRequest(client, requestLine)
     if method == "GET" then
         if path == "/party" then
             apiHandlers.handlePartyRequest(client, self.memoryReader)
+        elseif path == "/enemy" then
+            apiHandlers.handleEnemyPartyRequest(client, self.memoryReader)
         elseif path == "/player" then
             apiHandlers.handlePlayerRequest(client, self.memoryReader)
         elseif path == "/bag" then

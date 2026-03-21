@@ -102,6 +102,20 @@ function MemoryReader.update()
     end
 end
 
+-- Get enemy party data (only works during battles, returns empty outside)
+function MemoryReader.getEnemyPartyData()
+    if not MemoryReader.isInitialized then return nil end
+    if not MemoryReader.partyReader then return nil end
+
+    local gen = MemoryReader.currentGame.gameInfo.generation
+    if gen ~= "CFRU" and gen ~= 3 then return nil end
+    if not MemoryReader.currentGame.addresses.enemyPartyAddr then return nil end
+
+    local gameUtils = require("utils.gameutils")
+    local enemyAddr = gameUtils.hexToNumber(MemoryReader.currentGame.addresses.enemyPartyAddr)
+    return MemoryReader.partyReader:readEnemyParty({enemyPartyAddr = enemyAddr})
+end
+
 -- Get party data based on game generation
 function MemoryReader.getPartyData()
     if not MemoryReader.isInitialized then

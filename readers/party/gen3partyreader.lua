@@ -31,9 +31,10 @@ function Gen3PartyReader:readParty(addresses)
 end
 
 function Gen3PartyReader:readEnemyParty(addresses)
+    if not addresses.enemyPartyAddr then return {} end
     local party = {}
     for i = 1, 6 do
-        party[i] = self:readPokemon(addresses.enemyStats, i)
+        party[i] = self:readPokemon(addresses.enemyPartyAddr, i)
     end
     return party
 end

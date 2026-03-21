@@ -24,6 +24,7 @@ function SoulLinkState:new(opts)
         eventLimit = (opts and opts.eventLimit) or DEFAULT_EVENT_LIMIT,
         baselineEstablished = false,
         currentParty = {},
+        currentEnemyParty = {},
         trackedPokemon = {},
         routeOrder = {},
         routeIndex = {},
@@ -113,6 +114,16 @@ function SoulLinkState:buildSnapshot(memoryReader)
     return snapshot
 end
 
+function SoulLinkState:readEnemyParty(memoryReader)
+    local enemy = self.reader:readEnemyParty(memoryReader)
+    local result = {}
+    for _, pokemon in pairs(enemy) do
+        table.insert(result, pokemon)
+    end
+    table.sort(result, function(a, b) return (a.slot or 99) < (b.slot or 99) end)
+    return result
+end
+
 function SoulLinkState:establishBaseline(snapshot)
     self.currentParty = {}
     for personality, pokemon in pairs(snapshot) do
@@ -172,6 +183,7 @@ function SoulLinkState:reset()
     self.frameCount = 0
     self.baselineEstablished = false
     self.currentParty = {}
+    self.currentEnemyParty = {}
     self.trackedPokemon = {}
     self.routeOrder = {}
     self.routeIndex = {}
@@ -207,6 +219,8 @@ function SoulLinkState:update(memoryReader)
     end
 
     self:applySnapshot(snapshot)
+
+    self.currentEnemyParty = self:readEnemyParty(memoryReader)
 end
 
 function SoulLinkState:getCurrentParty()
@@ -275,6 +289,7 @@ function SoulLinkState:getState()
             pollInterval = self.pollInterval,
         },
         currentParty = self:getCurrentParty(),
+        enemyParty = self.currentEnemyParty or {},
         routes = self:getRoutes(),
         recentEvents = self:getRecentEvents(),
     }

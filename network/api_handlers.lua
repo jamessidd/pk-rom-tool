@@ -29,6 +29,24 @@ function ApiHandlers.handlePartyRequest(client, memoryReader)
     httpUtils.sendResponse(client, 200, "OK", "application/json", jsonData)
 end
 
+function ApiHandlers.handleEnemyPartyRequest(client, memoryReader)
+    if not memoryReader.isInitialized then
+        httpUtils.sendResponse(client, 503, "Service Unavailable", "application/json",
+            json.encode({error = "Memory reader not initialized", message = "No Pokemon game detected"}))
+        return
+    end
+
+    if not memoryReader.partyReader then
+        httpUtils.sendResponse(client, 503, "Service Unavailable", "application/json",
+            json.encode({error = "Party reader not available", message = "Game not supported"}))
+        return
+    end
+
+    local enemyParty = dataConverter.getEnemyPartyData(memoryReader)
+    local jsonData = json.encode(enemyParty, {indent = true})
+    httpUtils.sendResponse(client, 200, "OK", "application/json", jsonData)
+end
+
 function ApiHandlers.handleStatusRequest(client, memoryReader, port, host, isRunning)
     local gameInfo = memoryReader.currentGame and memoryReader.currentGame.gameInfo or nil
     local gameUtils = require("utils.gameutils")
