@@ -13,74 +13,76 @@
  *  - Inclement Emerald
  */
 
-// Route IDs 101-125 are confirmed. City/dungeon IDs need in-game verification.
-// Replace `null` with the correct numeric ID once verified.
+// MAPSEC IDs from the CFRU source (region_map_sections.h).
+// Verified against pret/pokefirered decomp and confirmed in-game.
+// Radical Red may remap some Sevii/unused IDs to custom locations;
+// the dynamic ROM scanner in location_lookup.lua handles that automatically.
 const KANTO_PROGRESSION = [
-  { name: 'Pallet Town',     id: null },
+  { name: 'Pallet Town',     id: 88 },
   { name: 'Route 1',         id: 101 },
-  { name: 'Viridian City',   id: null },
+  { name: 'Viridian City',   id: 89 },
   { name: 'Route 22',        id: 122 },
   { name: 'Route 2',         id: 102 },
-  { name: 'Viridian Forest', id: null },
-  { name: 'Pewter City',     id: null },
-  { name: "Diglett's Cave",  id: null },
+  { name: 'Viridian Forest', id: 126 },
+  { name: 'Pewter City',     id: 90 },
+  { name: "Diglett's Cave",  id: 131 },
   { divider: 'Gym 1 — Brock (Pewter)' },
 
   { name: 'Route 3',         id: 103 },
   { name: 'Route 4',         id: 104 },
-  { name: 'Mt. Moon',        id: null },
-  { name: 'Cerulean City',   id: null },
+  { name: 'Mt. Moon',        id: 127 },
+  { name: 'Cerulean City',   id: 91 },
   { name: 'Route 24',        id: 124 },
   { name: 'Route 25',        id: 125 },
   { divider: 'Gym 2 — Misty (Cerulean)' },
 
   { name: 'Route 5',         id: 105 },
-  { name: 'Underground Path', id: null },
+  { name: 'Underground Path', id: 129 },
   { name: 'Route 6',         id: 106 },
-  { name: 'Vermilion City',  id: null },
-  { name: 'S.S. Anne',       id: null },
+  { name: 'Vermilion City',  id: 93 },
+  { name: 'S.S. Anne',       id: 128 },
   { name: 'Route 11',        id: 111 },
   { divider: 'Gym 3 — Lt. Surge (Vermilion)' },
 
   { name: 'Route 9',         id: 109 },
   { name: 'Route 10',        id: 110 },
-  { name: 'Rock Tunnel',     id: null },
-  { name: 'Lavender Town',   id: null },
+  { name: 'Rock Tunnel',     id: 138 },
+  { name: 'Lavender Town',   id: 92 },
   { name: 'Route 12',        id: 112 },
   { name: 'Route 8',         id: 108 },
   { name: 'Route 7',         id: 107 },
-  { name: 'Celadon City',    id: null },
+  { name: 'Celadon City',    id: 94 },
   { name: 'Route 16',        id: 116 },
-  { name: 'Saffron City',    id: null },
+  { name: 'Saffron City',    id: 98 },
   { divider: 'Gym 4 — Erika (Celadon)' },
 
-  { name: 'Pokémon Tower',   id: null },
-  { name: 'Silph Co.',       id: null },
+  { name: 'Pokémon Tower',   id: 140 },
+  { name: 'Silph Co.',       id: 134 },
   { divider: 'Gym 5 — Sabrina (Saffron)' },
 
   { name: 'Route 17',        id: 117 },
   { name: 'Route 13',        id: 113 },
   { name: 'Route 14',        id: 114 },
   { name: 'Route 15',        id: 115 },
-  { name: 'Fuchsia City',    id: null },
-  { name: 'Safari Zone',     id: null },
+  { name: 'Fuchsia City',    id: 95 },
+  { name: 'Safari Zone',     id: 136 },
   { name: 'Route 18',        id: 118 },
   { divider: 'Gym 6 — Koga (Fuchsia)' },
 
-  { name: 'Power Plant',     id: null },
+  { name: 'Power Plant',     id: 142 },
   { name: 'Route 23',        id: 123 },
   { name: 'Route 19',        id: 119 },
   { name: 'Route 20',        id: 120 },
-  { name: 'Seafoam Islands', id: null },
-  { name: 'Cinnabar Island', id: null },
-  { name: 'Pokémon Mansion', id: null },
+  { name: 'Seafoam Islands', id: 139 },
+  { name: 'Cinnabar Island', id: 96 },
+  { name: 'Pokémon Mansion', id: 135 },
   { name: 'Route 21',        id: 121 },
   { divider: 'Gym 7 — Blaine (Cinnabar)' },
 
-  { name: 'Cerulean Cave',   id: null },
+  { name: 'Cerulean Cave',   id: 141 },
   { divider: 'Gym 8 — Giovanni (Viridian)' },
-  { name: 'Victory Road',    id: null },
-  { name: 'Indigo Plateau',  id: null },
+  { name: 'Victory Road',    id: 132 },
+  { name: 'Indigo Plateau',  id: 97 },
   { divider: 'Elite Four' },
 ];
 

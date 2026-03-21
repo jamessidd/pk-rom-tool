@@ -16,6 +16,8 @@ local function shallowCopy(tbl)
 end
 
 function SoulLinkState:new(opts)
+    LocationLookup.init()
+
     local obj = {
         frameCount = 0,
         pollInterval = (opts and opts.pollInterval) or DEFAULT_POLL_INTERVAL,
