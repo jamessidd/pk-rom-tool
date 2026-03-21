@@ -207,33 +207,31 @@ button:active { transform:scale(0.97); }
 .solo-encounters { flex:1; min-width:0; max-width:420px; }
 .solo-events { margin-top:16px; }
 
-/* ---- Multi Layout (3-column) ---- */
+/* ---- Multi Layout (2-column: encounters | party+timeline) ---- */
 .layout-multi-new {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   align-items: flex-start;
 }
-.multi-timeline {
-  width: 320px;
+.multi-encounters {
+  flex: 1;
   min-width: 280px;
-  flex-shrink: 0;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
   padding-right: 4px;
 }
-.multi-my-party {
+.multi-party-col {
   flex-shrink: 0;
-}
-.multi-friends {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: calc(100vh - 80px);
-  overflow-y: auto;
 }
-.multi-links-section { margin-top: 16px; }
+.multi-timeline {
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.multi-links-section { }
 .multi-events-section { margin-top: 16px; }
 .party-grids-center { justify-content:center; }
 
@@ -250,6 +248,53 @@ button:active { transform:scale(0.97); }
 .pg-group {
   padding:12px;
   border-radius:var(--radius);
+}
+
+/* ---- Trainer Carousel ---- */
+.pg-carousel-banner {
+  margin-bottom:12px;
+}
+.pg-carousel-tabs {
+  display:flex; gap:4px; margin-bottom:8px;
+  padding:4px; background:rgba(255,255,255,0.02);
+  border-radius:var(--radius-sm);
+  overflow-x:auto;
+}
+.pg-tab {
+  display:flex; align-items:center; gap:6px;
+  padding:6px 12px;
+  border:1px solid transparent;
+  border-radius:var(--radius-sm);
+  background:transparent;
+  color:var(--text-muted);
+  cursor:pointer;
+  transition:all .2s;
+  white-space:nowrap;
+  font-family:inherit; font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.3px;
+}
+.pg-tab:hover {
+  background:rgba(255,255,255,0.04);
+  color:var(--text);
+}
+.pg-tab-active {
+  background:rgba(59,130,246,0.1);
+  border-color:var(--accent);
+  color:var(--accent);
+}
+.pg-tab-sprite {
+  height:28px; image-rendering:pixelated; object-fit:contain;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,0.3));
+}
+.pg-tab-name { }
+
+.pg-banner-details {
+  display:flex; align-items:center; gap:14px;
+  padding:10px 14px;
+  background:linear-gradient(135deg, rgba(59,130,246,0.08), rgba(99,102,241,0.04));
+  border-left:3px solid var(--accent);
+  border-radius:var(--radius-sm);
+  min-height:60px;
 }
 
 /* ---- Trainer Banner ---- */
@@ -278,6 +323,22 @@ button:active { transform:scale(0.97); }
 }
 .pg-coins {
   font-size:10px; font-weight:600; color:var(--gold);
+}
+
+/* ---- Party Grid Slide Animations ---- */
+@keyframes slideInLeft {
+  from { opacity:0; transform:translateX(30px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity:0; transform:translateX(-30px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+.pg-grid-slide-left {
+  animation: slideInLeft .3s ease-out;
+}
+.pg-grid-slide-right {
+  animation: slideInRight .3s ease-out;
 }
 
 /* ---- Party Grid ---- */
@@ -779,6 +840,13 @@ button:active { transform:scale(0.97); }
   letter-spacing:1px; color:var(--accent);
   margin-bottom:10px; padding-bottom:6px;
   border-bottom:1px solid var(--glass-border);
+  display:flex; align-items:center; gap:8px;
+}
+.slt-game-name {
+  font-size:9px; font-weight:600; text-transform:none;
+  letter-spacing:.3px; color:var(--text-muted);
+  background:rgba(255,255,255,0.04);
+  padding:2px 8px; border-radius:4px;
 }
 .slt-empty {
   font-size:11px; color:var(--text-muted); font-style:italic; padding:8px 0;
@@ -1058,13 +1126,12 @@ button:active { transform:scale(0.97); }
   .layout-solo { flex-direction:column; }
   .solo-encounters { width:100%; }
   .layout-multi-new { flex-direction:column; }
-  .multi-timeline {
+  .multi-encounters {
     width:100%; min-width:0;
-    max-height:400px; overflow-y:auto;
-  }
-  .multi-friends {
-    flex-direction:row; flex-wrap:wrap;
     max-height:none; overflow:visible;
+  }
+  .multi-timeline {
+    max-height:400px;
   }
 }
 @media (max-width: 900px) {

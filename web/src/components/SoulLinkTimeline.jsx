@@ -1,11 +1,11 @@
 import useSprite from '../hooks/useSprite';
 import { TYPE_COLORS } from '../utils/types';
 
-export default function SoulLinkTimeline({ timeline, encounters }) {
+export default function SoulLinkTimeline({ timeline, encounters, gameName }) {
   if (!timeline || timeline.length === 0) {
     return (
       <div className="slt">
-        <div className="slt-title">Soul Link Tracker</div>
+        <div className="slt-title">Soul Link Timeline</div>
         <div className="slt-empty">No timeline data for this game.</div>
       </div>
     );
@@ -22,7 +22,10 @@ export default function SoulLinkTimeline({ timeline, encounters }) {
 
   return (
     <div className="slt">
-      <div className="slt-title">Soul Link Tracker</div>
+      <div className="slt-title">
+        Soul Link Timeline
+        {gameName && <span className="slt-game-name">{gameName}</span>}
+      </div>
       <div className="slt-list">
         {timeline.map((entry, i) => {
           if (entry.type === 'route') {

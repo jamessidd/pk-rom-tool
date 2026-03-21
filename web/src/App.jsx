@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import StatusBar from './components/StatusBar';
 import SettingsModal from './components/SettingsModal';
 import PartyGrid from './components/PartyGrid';
-import CompactPartyGrid from './components/CompactPartyGrid';
 import SoulLinkTimeline from './components/SoulLinkTimeline';
 import RouteLinkList, { SoloRouteLinkList } from './components/RouteLinkList';
 import EventFeed from './components/EventFeed';
@@ -79,6 +78,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [trainerSpriteId, setTrainerSpriteId] = useState(getTrainerSprite);
   const [spritePickerOpen, setSpritePickerOpen] = useState(false);
+  const [selectedTrainerId, setSelectedTrainerId] = useState(null);
 
   const { connected: localOk, status, soulLink, party: localParty, trainerInfo } = useLocalTracker(localUrl);
   const room = useRoom(syncUrl, playerName, status, soulLink, localParty);
@@ -283,16 +283,12 @@ export default function App() {
 
         {(localOk || isMockMode) && isMulti && (() => {
           const timeline = getTimeline(gameName);
-          const myParty = finalTrainerParties[0];
-          const friendParties = finalTrainerParties.slice(1);
+          const activeId = selectedTrainerId || finalTrainerParties[0]?.playerId;
+          const activeTrainer = finalTrainerParties.find(t => t.playerId === activeId) || finalTrainerParties[0];
 
           return (
             <div className="layout-multi-new">
-              <aside className="multi-timeline">
-                <SoulLinkTimeline
-                  timeline={timeline}
-                  encounters={isMockMode ? [] : filteredSoloRoutes}
-                />
+              <aside className="multi-encounters">
                 {finalRoomLinks.length > 0 && (
                   <div className="multi-links-section">
                     <h3 className="section-title">Linked Encounters</h3>
@@ -304,28 +300,26 @@ export default function App() {
                   <EventFeed events={finalRoomEvents} />
                 </div>
               </aside>
-              <section className="multi-my-party">
+              <section className="multi-party-col">
                 <PartyGrid
-                  trainerName={myParty.name}
-                  party={myParty.party}
+                  trainerName={activeTrainer.name}
+                  party={activeTrainer.party}
                   routeMap={finalRouteMap}
-                  trainerSprite={myParty.spriteUrl}
-                  money={myParty.money}
-                  coins={myParty.coins}
+                  trainerSprite={activeTrainer.spriteUrl}
+                  money={activeTrainer.money}
+                  coins={activeTrainer.coins}
+                  allTrainers={finalTrainerParties}
+                  onSelectTrainer={setSelectedTrainerId}
+                  activePlayerId={activeId}
                 />
-              </section>
-              <aside className="multi-friends">
-                {friendParties.map(f => (
-                  <CompactPartyGrid
-                    key={f.playerId}
-                    trainerName={f.name}
-                    party={f.party}
-                    trainerSprite={f.spriteUrl}
-                    money={f.money}
-                    coins={f.coins}
+                <aside className="multi-timeline">
+                  <SoulLinkTimeline
+                    timeline={timeline}
+                    encounters={isMockMode ? [] : filteredSoloRoutes}
+                    gameName={gameName}
                   />
-                ))}
-              </aside>
+                </aside>
+              </section>
             </div>
           );
         })()}

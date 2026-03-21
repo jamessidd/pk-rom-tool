@@ -1,11 +1,11 @@
-import { useRef, useLayoutEffect, useCallback, useEffect } from 'react';
+import { useRef, useLayoutEffect, useCallback, useState } from 'react';
 import PartyCard, { EmptySlot } from './PartyCard';
 
 function formatMoney(n) {
   return n != null ? `$${Number(n).toLocaleString()}` : null;
 }
 
-export default function PartyGrid({ trainerName, party, routeMap, trainerSprite, money, coins }) {
+export default function PartyGrid({ trainerName, party, routeMap, trainerSprite, money, coins, allTrainers, onSelectTrainer, activePlayerId }) {
   const slots = [];
   for (let i = 0; i < 6; i++) {
     slots.push(party[i] || null);
@@ -14,6 +14,7 @@ export default function PartyGrid({ trainerName, party, routeMap, trainerSprite,
   const nodeMapRef = useRef(new Map());
   const prevRectsRef = useRef(new Map());
   const prevOrderRef = useRef('');
+  const [animDir, setAnimDir] = useState(null);
 
   const registerNode = useCallback((personality, node) => {
     if (node) {
@@ -66,19 +67,59 @@ export default function PartyGrid({ trainerName, party, routeMap, trainerSprite,
     prevRectsRef.current = nextRects;
   });
 
+  const hasCarousel = allTrainers && allTrainers.length > 1;
+
+  function handleSelect(playerId) {
+    if (playerId === activePlayerId) return;
+    const curIdx = allTrainers.findIndex(t => t.playerId === activePlayerId);
+    const nextIdx = allTrainers.findIndex(t => t.playerId === playerId);
+    setAnimDir(nextIdx > curIdx ? 'slide-left' : 'slide-right');
+    onSelectTrainer(playerId);
+    setTimeout(() => setAnimDir(null), 350);
+  }
+
   return (
     <div className="pg glass-card pg-group">
-      <div className="pg-banner">
-        {trainerSprite && (
-          <img className="pg-banner-sprite" src={trainerSprite} alt="" />
-        )}
-        <div className="pg-banner-info">
-          <span className="pg-trainer-name">{trainerName}</span>
-          {money != null && <span className="pg-money">{formatMoney(money)}</span>}
-          {coins != null && coins > 0 && <span className="pg-coins">{Number(coins).toLocaleString()} coins</span>}
+      {hasCarousel ? (
+        <div className="pg-carousel-banner">
+          <div className="pg-carousel-tabs">
+            {allTrainers.map(t => (
+              <button
+                key={t.playerId}
+                className={`pg-tab ${t.playerId === activePlayerId ? 'pg-tab-active' : ''}`}
+                onClick={() => handleSelect(t.playerId)}
+              >
+                {t.spriteUrl && (
+                  <img className="pg-tab-sprite" src={t.spriteUrl} alt="" />
+                )}
+                <span className="pg-tab-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="pg-banner-details">
+            {trainerSprite && (
+              <img className="pg-banner-sprite" src={trainerSprite} alt="" />
+            )}
+            <div className="pg-banner-info">
+              <span className="pg-trainer-name">{trainerName}</span>
+              {money != null && <span className="pg-money">{formatMoney(money)}</span>}
+              {coins != null && coins > 0 && <span className="pg-coins">{Number(coins).toLocaleString()} coins</span>}
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="pg-grid">
+      ) : (
+        <div className="pg-banner">
+          {trainerSprite && (
+            <img className="pg-banner-sprite" src={trainerSprite} alt="" />
+          )}
+          <div className="pg-banner-info">
+            <span className="pg-trainer-name">{trainerName}</span>
+            {money != null && <span className="pg-money">{formatMoney(money)}</span>}
+            {coins != null && coins > 0 && <span className="pg-coins">{Number(coins).toLocaleString()} coins</span>}
+          </div>
+        </div>
+      )}
+      <div className={`pg-grid ${animDir ? `pg-grid-${animDir}` : ''}`}>
         {slots.map((mon, i) =>
           mon ? (
             <div

@@ -1,65 +1,37 @@
 /**
- * Aliases for species names.
- * Radical Red truncates names to 10 chars, removing vowels from the end.
+ * Species name resolution with fuzzy matching.
  *
- * TODO: Add aliases for other ROM hacks (Emerald Kaizo, Unbound, etc.)
+ * Resolution order:
+ *  1. EXACT_ALIASES (priority overrides for special characters, known ROM hack names)
+ *  2. Direct slug lookup against PokeAPI
+ *  3. Fuzzy match against the full PokeAPI pokemon index (fetched once, cached)
+ *
+ * The fuzzy matcher uses Levenshtein distance against a base-name index
+ * built from PokeAPI's full pokemon list. This handles:
+ *  - Radical Red's 10-char truncation (IRONVALINT → iron-valiant)
+ *  - Form-based Pokemon (Mimikyu → mimikyu-disguised)
+ *  - Any ROM hack's custom species name mangling
  */
-const EXACT_ALIASES = {
-  // Paradox / compound-word Pokemon
-  IronBouldr: 'iron-boulder',
-  IRONBOULDR: 'iron-boulder',
-  IronLeaves: 'iron-leaves',
-  IRONLEAVE: 'iron-leaves',
-  IronMoth: 'iron-moth',
-  IRONMOTH: 'iron-moth',
-  IronHands: 'iron-hands',
-  IRONHANDS: 'iron-hands',
-  IronJuguls: 'iron-jugulis',
-  IRONJUGLIS: 'iron-jugulis',
-  IronThorns: 'iron-thorns',
-  IRONTHORNS: 'iron-thorns',
-  IronTreads: 'iron-treads',
-  IRONTREADS: 'iron-treads',
-  IronBundle: 'iron-bundle',
-  IRONBUNDLE: 'iron-bundle',
-  IronCrown: 'iron-crown',
-  IRONCROWN: 'iron-crown',
-  IronValiant: 'iron-valiant',
-  IRONVALINT: 'iron-valiant',
-  GreatTusk: 'great-tusk',
-  GREATTUSK: 'great-tusk',
-  ScreamTail: 'scream-tail',
-  SCREAMTAIL: 'scream-tail',
-  BruteBonnet: 'brute-bonnet',
-  BRUTBONNET: 'brute-bonnet',
-  FlutterMane: 'flutter-mane',
-  FLUTTRMANE: 'flutter-mane',
-  SlitherWing: 'slither-wing',
-  SLITHRWING: 'slither-wing',
-  SandyShocks: 'sandy-shocks',
-  SANDYSHCKS: 'sandy-shocks',
-  RoaringMoon: 'roaring-moon',
-  ROARINGMON: 'roaring-moon',
-  WalkingWake: 'walking-wake',
-  WALKINGWKE: 'walking-wake',
-  RagingBolt: 'raging-bolt',
-  RAGINGBOLT: 'raging-bolt',
-  GougingFire: 'gouging-fire',
-  GOUGINGFRE: 'gouging-fire',
 
-  // Special characters / formatting
+const EXACT_ALIASES = {
   MrMime: 'mr-mime',
   MRMIME: 'mr-mime',
   MimeJr: 'mime-jr',
   MIMEJR: 'mime-jr',
   MrRime: 'mr-rime',
   MRRIME: 'mr-rime',
+  'Mr. Mime': 'mr-mime',
+  'Mime Jr.': 'mime-jr',
+  'Mr. Rime': 'mr-rime',
   Farfetchd: 'farfetchd',
   FARFETCHD: 'farfetchd',
+  "Farfetch'd": 'farfetchd',
   Sirfetchd: 'sirfetchd',
   SIRFETCHD: 'sirfetchd',
+  "Sirfetch'd": 'sirfetchd',
   TypeNull: 'type-null',
   TYPENULL: 'type-null',
+  'Type: Null': 'type-null',
   TapuKoko: 'tapu-koko',
   TAPUKOKO: 'tapu-koko',
   TapuLele: 'tapu-lele',
@@ -68,108 +40,132 @@ const EXACT_ALIASES = {
   TAPUBULU: 'tapu-bulu',
   TapuFini: 'tapu-fini',
   TAPUFINI: 'tapu-fini',
-
-  // Truncated names (10-char limit)
-  Corvknight: 'corviknight',
-  Corviknig: 'corviknight',
-  CORVIKNGHT: 'corviknight',
-  Fletchindr: 'fletchinder',
-  FLETCHINDR: 'fletchinder',
-  Basculegn: 'basculegion',
-  BASCULEGN: 'basculegion',
-  Annihilap: 'annihilape',
-  ANNIHILAPE: 'annihilape',
-  Bramblegh: 'brambleghast',
-  BRAMBLEGH: 'brambleghast',
-  Toedscrul: 'toedscruel',
-  TOEDSCRUL: 'toedscruel',
-  Houndston: 'houndstone',
-  HOUNDSTN: 'houndstone',
-  Squawkabi: 'squawkabilly',
-  SQUAWKBILY: 'squawkabilly',
-  Bombirdir: 'bombirdier',
-  BOMBIRDIR: 'bombirdier',
-  Scovillai: 'scovillain',
-  SCOVILLAIN: 'scovillain',
-  Mabosstif: 'mabosstiff',
-  MABOSSTIF: 'mabosstiff',
-  Oinkologn: 'oinkologne',
-  OINKOLOGN: 'oinkologne',
-  Tarountul: 'tarountula',
-  TAROUNTUL: 'tarountula',
-  Dudunsprc: 'dudunsparce',
-  DUDUNSPRC: 'dudunsparce',
-  Kilowattr: 'kilowattrel',
-  KILOWATTR: 'kilowattrel',
-
-  // Gen 8/9 names that may appear verbatim
-  Wyrdeer: 'wyrdeer',
-  Overqwil: 'overqwil',
-  Kleavor: 'kleavor',
-  Ursaluna: 'ursaluna',
-  Annihilape: 'annihilape',
-  Farigiraf: 'farigiraf',
-  Kingambit: 'kingambit',
-  Clodsire: 'clodsire',
-  Dondozo: 'dondozo',
-  Tatsugiri: 'tatsugiri',
-  Palafin: 'palafin',
-  Flamigo: 'flamigo',
-  Cetitan: 'cetitan',
-  Veluza: 'veluza',
-  Dachsbun: 'dachsbun',
-  Grafaiai: 'grafaiai',
-  Toedscruel: 'toedscruel',
-  Rabsca: 'rabsca',
-  Espathra: 'espathra',
-  Greavard: 'greavard',
-  Flittle: 'flittle',
-  Glimmora: 'glimmora',
-  Orthworm: 'orthworm',
-  Revavroom: 'revavroom',
-  Varoom: 'varoom',
-  Cyclizar: 'cyclizar',
-  Tandemaus: 'tandemaus',
-  Maushold: 'maushold',
-  Squawkabilly: 'squawkabilly',
-  Nacli: 'nacli',
-  Garganacl: 'garganacl',
-  Charcadet: 'charcadet',
-  Armarouge: 'armarouge',
-  Ceruledge: 'ceruledge',
-  Bellibolt: 'bellibolt',
-  Wattrel: 'wattrel',
-  Kilowattrel: 'kilowattrel',
-  Tinkatink: 'tinkatink',
-  Tinkatuff: 'tinkatuff',
-  Tinkaton: 'tinkaton',
-  Wiglett: 'wiglett',
-  Wugtrio: 'wugtrio',
-  Bombirdier: 'bombirdier',
-  Finizen: 'finizen',
-  Smoliv: 'smoliv',
-  Dolliv: 'dolliv',
-  Arboliva: 'arboliva',
-  Capsakid: 'capsakid',
-  Scovillain: 'scovillain',
-  Tadbulb: 'tadbulb',
-  Fidough: 'fidough',
-  Maschiff: 'maschiff',
-  Mabosstiff: 'mabosstiff',
-  Shroodle: 'shroodle',
-  Pawmi: 'pawmi',
-  Pawmo: 'pawmo',
-  Pawmot: 'pawmot',
-  Lechonk: 'lechonk',
-  Oinkologne: 'oinkologne',
-  Tarountula: 'tarountula',
-  Spidops: 'spidops',
-  Nymble: 'nymble',
-  Lokix: 'lokix',
-  Rellor: 'rellor',
-  Dudunsparce: 'dudunsparce',
-  Aegislash: 'aegislash',
+  'Nidoran♀': 'nidoran-f',
+  'Nidoran♂': 'nidoran-m',
+  NIDORANF: 'nidoran-f',
+  NIDORANM: 'nidoran-m',
+  'Flabébé': 'flabebe',
+  FLABEBE: 'flabebe',
 };
+
+// --- Levenshtein distance ---
+
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const m = a.length;
+  const n = b.length;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+
+  for (let j = 0; j <= n; j++) prev[j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + cost,
+      );
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+// --- PokeAPI Index (fetched once, cached) ---
+
+let pokemonIndexPromise = null;
+let pokemonIndex = null;
+
+function normalize(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function buildIndex(pokemonList) {
+  const baseToSlug = new Map();
+  const allSlugs = new Set();
+
+  for (const { name } of pokemonList) {
+    allSlugs.add(name);
+    const base = name.split('-')[0];
+    if (!baseToSlug.has(base)) {
+      baseToSlug.set(base, name);
+    }
+    const norm = normalize(name);
+    if (!baseToSlug.has(norm)) {
+      baseToSlug.set(norm, name);
+    }
+  }
+
+  return { baseToSlug, allSlugs, list: pokemonList.map(p => p.name) };
+}
+
+async function fetchPokemonIndex() {
+  try {
+    const resp = await fetch('https://pokeapi.co/api/v2/pokemon?limit=2000');
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return buildIndex(data.results || []);
+  } catch {
+    return null;
+  }
+}
+
+function getPokemonIndex() {
+  if (pokemonIndex) return Promise.resolve(pokemonIndex);
+  if (!pokemonIndexPromise) {
+    pokemonIndexPromise = fetchPokemonIndex().then(idx => {
+      pokemonIndex = idx;
+      return idx;
+    });
+  }
+  return pokemonIndexPromise;
+}
+
+function fuzzyMatch(input, index) {
+  if (!index) return null;
+
+  const norm = normalize(input);
+  if (!norm) return null;
+
+  if (index.allSlugs.has(norm)) return norm;
+
+  const baseHit = index.baseToSlug.get(norm);
+  if (baseHit) return baseHit;
+
+  let bestSlug = null;
+  let bestDist = Infinity;
+
+  for (const slug of index.list) {
+    const slugNorm = normalize(slug);
+
+    const dist = levenshtein(norm, slugNorm);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestSlug = slug;
+    }
+
+    const base = slug.split('-')[0];
+    const baseDist = levenshtein(norm, base);
+    if (baseDist < bestDist) {
+      bestDist = baseDist;
+      bestSlug = slug;
+    }
+  }
+
+  const maxLen = Math.max(norm.length, bestSlug ? normalize(bestSlug).length : 0);
+  const threshold = Math.max(3, Math.floor(maxLen * 0.35));
+  if (bestDist <= threshold) return bestSlug;
+
+  return null;
+}
+
+// --- Core resolution ---
 
 const POKEAPI_DATA_CACHE = new Map();
 const POKEAPI_CACHE = new Map();
@@ -183,7 +179,7 @@ function basicSlug(name) {
     .toLowerCase()
     .replace(/♀/g, '-f')
     .replace(/♂/g, '-m')
-    .replace(/['’:.]/g, '')
+    .replace(/['':.]/g, '')
     .replace(/\s+/g, '-')
     .replace(/_/g, '-')
     .replace(/--+/g, '-')
@@ -236,21 +232,46 @@ function extractBaseStats(data) {
   return map;
 }
 
+async function tryFetch(slug) {
+  const resp = await fetch(`https://pokeapi.co/api/v2/pokemon/${slug}`);
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
 async function fetchPokeApiData(speciesName) {
   for (const candidate of spriteCandidates(speciesName)) {
     try {
-      const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${candidate}`);
-      if (!response.ok) continue;
-      const data = await response.json();
-      return {
-        sprite: data?.sprites?.front_default ||
-          data?.sprites?.other?.['official-artwork']?.front_default || null,
-        baseStats: extractBaseStats(data),
-      };
+      const data = await tryFetch(candidate);
+      if (data) {
+        return {
+          sprite: data.sprites?.front_default ||
+            data.sprites?.other?.['official-artwork']?.front_default || null,
+          baseStats: extractBaseStats(data),
+        };
+      }
     } catch {
-      // Try next candidate
+      // continue
     }
   }
+
+  // Fuzzy fallback: match against the full PokeAPI index
+  const index = await getPokemonIndex();
+  const fuzzySlug = fuzzyMatch(speciesName, index);
+  if (fuzzySlug) {
+    try {
+      const data = await tryFetch(fuzzySlug);
+      if (data) {
+        return {
+          sprite: data.sprites?.front_default ||
+            data.sprites?.other?.['official-artwork']?.front_default || null,
+          baseStats: extractBaseStats(data),
+        };
+      }
+    } catch {
+      // fall through
+    }
+  }
+
   return { sprite: null, baseStats: null };
 }
 
