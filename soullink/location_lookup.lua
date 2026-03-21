@@ -4,7 +4,10 @@ local LocationLookup = {}
 -- Use tools/dump_locations.lua in BizHawk to generate tables for new games.
 local GAME_LOCATIONS = {}
 
--- Radical Red / FireRed (CFRU) — dumped from ROM via tools/dump_locations.lua
+-- Radical Red (CFRU) — dumped from ROM via tools/dump_locations.lua
+-- WARNING: These IDs are specific to Radical Red. Other CFRU hacks
+-- (FireRed, LeafGreen, Unbound, etc.) have their own mappings.
+-- Run tools/dump_locations.lua to generate a table for a new game.
 GAME_LOCATIONS["radical red"] = {
     [88]  = "Pallet Town",
     [89]  = "Viridian City",
@@ -117,17 +120,10 @@ GAME_LOCATIONS["radical red"] = {
     [196] = "Celadon Dept.",
 }
 
--- Aliases: other game names that share the same table
-GAME_LOCATIONS["radicalred"]   = GAME_LOCATIONS["radical red"]
-GAME_LOCATIONS["fire red"]     = GAME_LOCATIONS["radical red"]
-GAME_LOCATIONS["firered"]      = GAME_LOCATIONS["radical red"]
-GAME_LOCATIONS["leaf green"]   = GAME_LOCATIONS["radical red"]
-GAME_LOCATIONS["leafgreen"]    = GAME_LOCATIONS["radical red"]
+GAME_LOCATIONS["radicalred"] = GAME_LOCATIONS["radical red"]
 
--- TODO: Add tables for other games using tools/dump_locations.lua:
---   GAME_LOCATIONS["pokemon unbound"] = { ... }
---   GAME_LOCATIONS["inclement emerald"] = { ... }
---   GAME_LOCATIONS["emerald kaizo"] = { ... }
+-- TODO: Add tables for other games by running tools/dump_locations.lua
+-- Each game gets its own table — do NOT alias across different ROM hacks.
 
 local _activeTable = nil
 
