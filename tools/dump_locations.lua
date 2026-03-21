@@ -16,6 +16,11 @@
 --
 -- Output goes to a FILE, not the console, so BizHawk's message
 -- cap won't truncate anything.
+--
+-- NOTE: Anchor MAPSEC IDs (89 = Viridian City, 101 = Route 1)
+-- are verified for Radical Red. Other CFRU hacks may use different
+-- IDs. If the scanner fails, update the ANCHORS and VERIFY tables
+-- below with confirmed in-game MAPSEC values from your ROM.
 -- =============================================================
 
 local SCRIPT_DIR = debug.getinfo(1, "S").source:match("@?(.*[\\/])") or "./"
@@ -42,7 +47,10 @@ local GBACharmap = { [0]=
 }
 
 -- ---- Anchor strings for cross-verification ----
--- These are confirmed MAPSEC IDs used to locate and verify the table.
+-- These MAPSEC IDs are confirmed for Radical Red (CFRU).
+-- Other hacks may assign different IDs to the same locations.
+-- If the scanner fails for your game, catch a Pokemon in a known
+-- city, check its metLocation byte, and update these values.
 local ANCHORS = {
     { mapsec = 89, label = "Viridian City", patterns = {
         {0xD0,0xDD,0xE6,0xDD,0xD8,0xDD,0xD5,0xE2,0x00,0xBD,0xDD,0xE8,0xED,0xFF},

@@ -12,6 +12,10 @@
 --   4. Check tools/move_names_dump.txt and tools/ability_names_dump.txt
 --
 -- Output goes to FILES to avoid BizHawk console truncation.
+--
+-- NOTE: Anchor IDs are verified for Radical Red. Other CFRU hacks
+-- may reorder move/ability IDs. If the scanner fails, update the
+-- anchor tables in this script with confirmed in-game IDs.
 -- =============================================================
 
 local SCRIPT_DIR = debug.getinfo(1, "S").source:match("@?(.*[\\/])") or "./"
@@ -142,7 +146,7 @@ local function scanNameTable(label, anchors, verifyPairs, maxEntries, romSize)
         for _, soff in ipairs(matches) do
             -- Approach 1: Direct fixed-stride string table
             -- The string IS the entry at position anchor.id * stride
-            for stride = 13, 20 do
+            for stride = 9, 24 do
                 local base = soff - (anchor.id * stride)
                 if base >= 0 and base + maxEntries * stride < romSize then
                     local good = true
@@ -165,8 +169,8 @@ local function scanNameTable(label, anchors, verifyPairs, maxEntries, romSize)
             console.log(string.format("[%s]   %d pointer(s) to 0x%08X", label, #ptrs, absAddr))
 
             for _, poff in ipairs(ptrs) do
-                for stride = 4, 16, 2 do
-                    for nameOff = 0, math.min(stride - 4, 8), 4 do
+                for stride = 4, 24, 2 do
+                    for nameOff = 0, math.min(stride - 4, 12), 4 do
                         local base = poff - nameOff - (anchor.id * stride)
                         if base >= 0 and base + maxEntries * stride < romSize then
                             local good = true
@@ -263,20 +267,26 @@ local function run()
     console.log("")
 
     -- ---- MOVE NAMES ----
-    -- Anchors: universally known move IDs across all Gen3/CFRU
+    -- WARNING: These anchor IDs are verified for Radical Red.
+    -- Other CFRU hacks may reorder move IDs — update these if
+    -- the scanner fails or returns garbage for your game.
+    --
+    -- Primary anchors use Gen 5+ IDs to skip the vanilla Gen 3
+    -- table and find the CFRU expanded table.
+    -- Verification uses vanilla moves that should be stable.
     local moveAnchors = {
-        { id = 1,  name = "Pound" },
-        { id = 10, name = "Scratch" },
-        { id = 33, name = "Tackle" },
+        { id = 611, name = "Solar Blade" },
+        { id = 638, name = "Wide Guard" },
     }
     local moveVerify = {
-        { id = 1,  name = "Pound" },
-        { id = 10, name = "Scratch" },
-        { id = 33, name = "Tackle" },
+        { id = 52,  name = "Ember" },
+        { id = 310, name = "Astonish" },
+        { id = 611, name = "Solar Blade" },
+        { id = 638, name = "Wide Guard" },
     }
 
     console.log("=== MOVE NAMES ===")
-    local moveResult = scanNameTable("Moves", moveAnchors, moveVerify, 900, romSize)
+    local moveResult = scanNameTable("Moves", moveAnchors, moveVerify, 1000, romSize)
 
     if moveResult then
         console.log(string.format("[Moves] TABLE FOUND! Type=%s, ROM+0x%06X, stride=%d",
@@ -284,9 +294,9 @@ local function run()
 
         local entries
         if moveResult.type == "direct" then
-            entries = dumpDirectTable(moveResult, 900, romSize)
+            entries = dumpDirectTable(moveResult, 1000, romSize)
         else
-            entries = dumpPointerTable(moveResult, 900, romSize)
+            entries = dumpPointerTable(moveResult, 1000, romSize)
         end
 
         writeEntries(MOVE_OUTPUT, "Move", moveResult, entries)
@@ -298,19 +308,25 @@ local function run()
     console.log("")
 
     -- ---- ABILITY NAMES ----
+    -- WARNING: These anchor IDs assume standard national-dex ordering
+    -- (which CFRU typically preserves). If your hack reorders abilities,
+    -- update these IDs from confirmed in-game data.
+    --
+    -- Primary anchors use Gen 4+ IDs to skip the vanilla table.
     local abilityAnchors = {
-        { id = 22, name = "Intimidate" },
-        { id = 65, name = "Overgrow" },
-        { id = 1,  name = "Stench" },
+        { id = 92,  name = "Adaptability" },
+        { id = 89,  name = "Download" },
+        { id = 104, name = "Mold Breaker" },
     }
     local abilityVerify = {
-        { id = 22, name = "Intimidate" },
-        { id = 65, name = "Overgrow" },
-        { id = 1,  name = "Stench" },
+        { id = 1,   name = "Stench" },
+        { id = 22,  name = "Intimidate" },
+        { id = 92,  name = "Adaptability" },
+        { id = 104, name = "Mold Breaker" },
     }
 
     console.log("=== ABILITY NAMES ===")
-    local abilityResult = scanNameTable("Abilities", abilityAnchors, abilityVerify, 400, romSize)
+    local abilityResult = scanNameTable("Abilities", abilityAnchors, abilityVerify, 500, romSize)
 
     if abilityResult then
         console.log(string.format("[Abilities] TABLE FOUND! Type=%s, ROM+0x%06X, stride=%d",
@@ -318,9 +334,9 @@ local function run()
 
         local entries
         if abilityResult.type == "direct" then
-            entries = dumpDirectTable(abilityResult, 400, romSize)
+            entries = dumpDirectTable(abilityResult, 500, romSize)
         else
-            entries = dumpPointerTable(abilityResult, 400, romSize)
+            entries = dumpPointerTable(abilityResult, 500, romSize)
         end
 
         writeEntries(ABILITY_OUTPUT, "Ability", abilityResult, entries)
