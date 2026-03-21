@@ -5,15 +5,20 @@ local LocationLookup = {}
 local _cache = nil
 local _scanAttempted = false
 
-local PALLET_MAPSEC = 0x58 -- 88
-
--- GBA charmap: A=0xBB..Z=0xD4, a=0xD5..z=0xEE, space=0x00, '.'=0xAD, ''''=0xB4, terminator=0xFF
--- Build search patterns for "Pallet" in both cases
-local SEARCH_PATTERNS = {
-    { label = "Pallet Town",
-      bytes = {0xCA, 0xD5, 0xE0, 0xE0, 0xD9, 0xE8, 0x00, 0xCE, 0xE3, 0xEB, 0xE2} },
-    { label = "PALLET TOWN",
-      bytes = {0xCA, 0xBB, 0xC6, 0xC6, 0xBF, 0xCE, 0x00, 0xCE, 0xC9, 0xD1, 0xC8} },
+-- Only use IN-GAME CONFIRMED mappings for the anchor search:
+--   89 = Viridian City, 101 = Route 1
+-- GBA charmap: A=0xBB..Z=0xD4, a=0xD5..z=0xEE, space=0x00, 1=0xA2, terminator=0xFF
+local ANCHORS = {
+    { mapsec = 89,  label = "Viridian City",
+      patterns = {
+        {0xD0, 0xDD, 0xE6, 0xDD, 0xD8, 0xDD, 0xD5, 0xE2, 0x00, 0xBD, 0xDD, 0xE8, 0xED, 0xFF},  -- "Viridian City\xFF"
+        {0xD0, 0xC3, 0xCC, 0xC3, 0xBE, 0xC3, 0xBB, 0xC8, 0x00, 0xBD, 0xC3, 0xCE, 0xD3, 0xFF},  -- "VIRIDIAN CITY\xFF"
+      }},
+    { mapsec = 101, label = "Route 1",
+      patterns = {
+        {0xCC, 0xE3, 0xE9, 0xE8, 0xD9, 0x00, 0xA2, 0xFF},  -- "Route 1\xFF"
+        {0xCC, 0xC9, 0xCF, 0xCE, 0xBF, 0x00, 0xA2, 0xFF},  -- "ROUTE 1\xFF"
+      }},
 }
 
 local CFRU_FALLBACK = {
@@ -93,9 +98,10 @@ local function isROMPointer(val)
     return val >= 0x08000000 and val < 0x0A000000
 end
 
--- Scan a region of ROM for a byte pattern. Yields every ~64KB to keep emulator responsive.
-local function findPattern(pattern, romSize)
+-- Scan ROM for ALL occurrences of a byte pattern. Yields every ~64KB.
+local function findAllPatterns(pattern, romSize)
     local patLen = #pattern
+    local results = {}
     for addr = 0, romSize - patLen do
         local match = true
         for i = 1, patLen do
@@ -105,13 +111,13 @@ local function findPattern(pattern, romSize)
             end
         end
         if match then
-            return addr
+            results[#results + 1] = addr
         end
         if addr % 0x10000 == 0 and emu and emu.frameadvance then
             emu.frameadvance()
         end
     end
-    return nil
+    return results
 end
 
 -- Scan a region of ROM for 4-byte pointer to a given absolute ROM address.
@@ -151,87 +157,93 @@ local function findPointers(targetAbsAddr, romSize)
     return results
 end
 
-local function tryFindTable(palletROMAddr, romSize)
-    local ptrLocations = findPointers(palletROMAddr, romSize)
+-- Cross-verify entries: given two confirmed mapsec->name pairs
+local VERIFY_PAIRS = {
+    { mapsec = 89,  keyword = "VIRIDIAN" },
+    { mapsec = 101, keyword = "ROUTE" },
+}
+
+local function tryFindTable(stringROMAddr, romSize, anchorMapsec)
+    local ptrLocations = findPointers(stringROMAddr, romSize)
     console.log(string.format("[LocationLookup] Found %d pointer candidates", #ptrLocations))
 
     for _, ptrOffset in ipairs(ptrLocations) do
-        console.log(string.format("[LocationLookup] Probing pointer at ROM+0x%06X", ptrOffset))
+        console.log(string.format("[LocationLookup] Probing pointer at ROM+0x%06X (anchor MAPSEC=%d)", ptrOffset, anchorMapsec))
 
-        -- Probe what's around this pointer to find the stride
-        -- Entry 89 (Viridian City) name pointer is at ptrOffset + stride
+        -- Try strides from 4 to 32
         for stride = 4, 32, 2 do
-            local nextAddr = ptrOffset + stride
-            if nextAddr + 4 <= romSize then
-                local val = memory.read_u32_le(nextAddr, "ROM")
-                if isROMPointer(val) then
-                    local testName = readGBAString(val & 0x1FFFFFF)
-                    if testName ~= "" and testName:upper():find("VIRIDIAN") then
+            -- Try name pointer at different offsets within the struct
+            for nameOff = 0, math.min(stride - 4, 12), 4 do
+                local tableBase = ptrOffset - nameOff - (anchorMapsec * stride)
+                if tableBase >= 0 and tableBase + 255 * stride < romSize then
+                    -- Cross-verify against other confirmed entries
+                    local allMatch = true
+                    for _, vp in ipairs(VERIFY_PAIRS) do
+                        if vp.mapsec ~= anchorMapsec then
+                            local checkAddr = tableBase + vp.mapsec * stride + nameOff
+                            if checkAddr + 4 <= romSize then
+                                local ptr = memory.read_u32_le(checkAddr, "ROM")
+                                if isROMPointer(ptr) then
+                                    local name = readGBAString(ptr & 0x1FFFFFF)
+                                    if not name:upper():find(vp.keyword) then
+                                        allMatch = false
+                                    end
+                                else
+                                    allMatch = false
+                                end
+                            else
+                                allMatch = false
+                            end
+                        end
+                    end
+
+                    if allMatch then
                         console.log(string.format(
-                            "[LocationLookup] Viridian City at +%d bytes => stride=%d",
-                            stride, stride
+                            "[LocationLookup] TABLE FOUND at ROM+0x%06X (stride=%d, nameOff=%d)",
+                            tableBase, stride, nameOff
                         ))
 
-                        -- Calculate the name pointer offset within the struct.
-                        -- We know ptrOffset has the name ptr for entry 88.
-                        -- The start of entry 88 is at: ptrOffset - nameFieldOffset
-                        -- Try nameFieldOffset = 0, 4, 8 to find which produces
-                        -- valid pointers for other entries too.
-                        for nameOff = 0, math.min(stride - 4, 12), 4 do
-                            local tableBase = ptrOffset - nameOff - (PALLET_MAPSEC * stride)
-                            if tableBase >= 0 then
-                                -- Quick sanity: check entry 90 (Pewter City)
-                                local pewterPtr = memory.read_u32_le(tableBase + 90 * stride + nameOff, "ROM")
-                                if isROMPointer(pewterPtr) then
-                                    local pewterName = readGBAString(pewterPtr & 0x1FFFFFF)
-                                    if pewterName:upper():find("PEWTER") then
-                                        console.log(string.format(
-                                            "[LocationLookup] Table at ROM+0x%06X (stride=%d, nameOff=%d)",
-                                            tableBase, stride, nameOff
-                                        ))
-
-                                        local locations = {}
-                                        local count = 0
-                                        for mapsec = 0, 255 do
-                                            local entryAddr = tableBase + mapsec * stride + nameOff
-                                            if entryAddr + 4 <= romSize then
-                                                local namePtr = memory.read_u32_le(entryAddr, "ROM")
-                                                if isROMPointer(namePtr) then
-                                                    local name = readGBAString(namePtr & 0x1FFFFFF)
-                                                    if name ~= "" then
-                                                        locations[mapsec] = name
-                                                        count = count + 1
-                                                    end
-                                                end
-                                            end
-                                        end
-
-                                        console.log(string.format("[LocationLookup] Loaded %d names from ROM", count))
-                                        for m = 88, 98 do
-                                            if locations[m] then
-                                                console.log(string.format("  [%3d] %s", m, locations[m]))
-                                            end
-                                        end
-                                        return locations
+                        local locations = {}
+                        local count = 0
+                        for mapsec = 0, 255 do
+                            local entryAddr = tableBase + mapsec * stride + nameOff
+                            if entryAddr + 4 <= romSize then
+                                local namePtr = memory.read_u32_le(entryAddr, "ROM")
+                                if isROMPointer(namePtr) then
+                                    local name = readGBAString(namePtr & 0x1FFFFFF)
+                                    if name ~= "" then
+                                        locations[mapsec] = name
+                                        count = count + 1
                                     end
                                 end
                             end
                         end
+
+                        console.log(string.format("[LocationLookup] Loaded %d names from ROM!", count))
+                        local keys = {}
+                        for k in pairs(locations) do keys[#keys + 1] = k end
+                        table.sort(keys)
+                        for _, m in ipairs(keys) do
+                            if m >= 85 then
+                                console.log(string.format("  [%3d] %s", m, locations[m]))
+                            end
+                        end
+                        return locations
                     end
                 end
             end
         end
 
-        -- Debug: dump raw values around the pointer so we can diagnose
-        console.log("[LocationLookup] Debug: values around pointer:")
-        for off = -8, 32, 4 do
+        -- Debug: dump surroundings if no table found from this pointer
+        console.log("[LocationLookup] No table match. Debug dump:")
+        for off = -16, 48, 4 do
             local addr = ptrOffset + off
             if addr >= 0 and addr + 4 <= romSize then
                 local val = memory.read_u32_le(addr, "ROM")
                 local label = ""
                 if isROMPointer(val) then
                     local s = readGBAString(val & 0x1FFFFFF)
-                    if s ~= "" then label = " -> \"" .. s .. "\"" end
+                    if s ~= "" and #s < 30 then label = " -> \"" .. s .. "\"" end
                 end
                 console.log(string.format("  [%+3d] 0x%08X%s", off, val, label))
             end
@@ -253,22 +265,22 @@ local function scanROM()
 
     console.log(string.format("[LocationLookup] ROM size: %dMB", romSize / 0x100000))
 
-    local allStringAddrs = {}
-    for _, pat in ipairs(SEARCH_PATTERNS) do
-        console.log(string.format("[LocationLookup] Searching for '%s'...", pat.label))
-        local found = findPattern(pat.bytes, romSize)
-        if found then
-            local absAddr = 0x08000000 + found
-            console.log(string.format("[LocationLookup] Found '%s' at 0x%08X", pat.label, absAddr))
-            allStringAddrs[#allStringAddrs + 1] = absAddr
-        end
-    end
+    -- For each anchor, find all terminated string occurrences
+    for _, anchor in ipairs(ANCHORS) do
+        for _, pattern in ipairs(anchor.patterns) do
+            console.log(string.format("[LocationLookup] Searching for '%s' (MAPSEC %d)...", anchor.label, anchor.mapsec))
+            local found = findAllPatterns(pattern, romSize)
+            console.log(string.format("[LocationLookup] Found %d terminated match(es)", #found))
 
-    for _, absAddr in ipairs(allStringAddrs) do
-        local locations = tryFindTable(absAddr, romSize)
-        if locations then
-            _cache = locations
-            return _cache
+            for _, offset in ipairs(found) do
+                local absAddr = 0x08000000 + offset
+                console.log(string.format("[LocationLookup] String at 0x%08X", absAddr))
+                local locations = tryFindTable(absAddr, romSize, anchor.mapsec)
+                if locations then
+                    _cache = locations
+                    return _cache
+                end
+            end
         end
     end
 
