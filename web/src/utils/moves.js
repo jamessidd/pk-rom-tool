@@ -47,12 +47,17 @@ function extractMoveData(data) {
     e => e.language?.name === 'en'
   );
 
+  let desc = enEffect?.short_effect || null;
+  if (desc && data.effect_chance != null) {
+    desc = desc.replace(/\$effect_chance/g, String(data.effect_chance));
+  }
+
   return {
     type: data.type?.name || null,
     power: data.power,
     accuracy: data.accuracy,
     damageClass: data.damage_class?.name || null,
-    description: enEffect?.short_effect || null,
+    description: desc,
   };
 }
 

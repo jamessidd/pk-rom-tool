@@ -25,16 +25,21 @@ function CategoryIcon({ damageClass }) {
   );
 }
 
-function EffBadge({ eff, damageClass }) {
+function EffBadge({ eff, damageClass, invert }) {
   if (damageClass === 'status') return null;
   if (!eff || !eff.label) return null;
-  const cls = eff.multiplier > 1 ? 'mc-eff-se'
-            : eff.multiplier === 0 ? 'mc-eff-immune'
-            : 'mc-eff-nve';
+  const isSE = eff.multiplier > 1;
+  const isImmune = eff.multiplier === 0;
+  let cls;
+  if (invert) {
+    cls = isSE ? 'mc-eff-nve' : isImmune ? 'mc-eff-se' : 'mc-eff-se';
+  } else {
+    cls = isSE ? 'mc-eff-se' : isImmune ? 'mc-eff-immune' : 'mc-eff-nve';
+  }
   return <span className={`mc-eff ${cls}`}>{eff.label}</span>;
 }
 
-export default function MoveCard({ name, data, effectiveness, compact }) {
+export default function MoveCard({ name, data, effectiveness, compact, invertEff }) {
   const displayName = splitMoveName(name);
 
   if (!name) return <div className={`mc mc-empty ${compact ? 'mc-compact' : ''}`} />;
@@ -60,7 +65,7 @@ export default function MoveCard({ name, data, effectiveness, compact }) {
       <div className={`mc mc-custom ${compact ? 'mc-compact' : ''}`}>
         <div className="mc-top">
           <span className="mc-name">{displayName}</span>
-          <EffBadge eff={effectiveness} />
+          <EffBadge eff={effectiveness} invert={invertEff} />
         </div>
         {!compact && (
           <div className="mc-bottom">
@@ -87,8 +92,9 @@ export default function MoveCard({ name, data, effectiveness, compact }) {
         <div className="mc-top">
           <span className="mc-type" style={{ background: typeColor }}>{typeName}</span>
           <span className="mc-name">{displayName}</span>
+          {!isStatus && <span className="mc-stat-inline"><span className="mc-val">{powerLabel}</span>/<span className="mc-val">{accLabel}</span></span>}
           <CategoryIcon damageClass={data.damageClass} />
-          <EffBadge eff={effectiveness} damageClass={data.damageClass} />
+          <EffBadge eff={effectiveness} damageClass={data.damageClass} invert={invertEff} />
         </div>
       </div>
     );
@@ -98,12 +104,11 @@ export default function MoveCard({ name, data, effectiveness, compact }) {
     <div
       className="mc"
       style={{ borderLeftColor: typeColor, background: `linear-gradient(90deg, ${typeColor}22, transparent 60%)` }}
-      title={data.description || displayName}
     >
       <div className="mc-top">
         <span className="mc-type" style={{ background: typeColor }}>{typeName}</span>
         <span className="mc-name">{displayName}</span>
-        <EffBadge eff={effectiveness} damageClass={data.damageClass} />
+        <EffBadge eff={effectiveness} damageClass={data.damageClass} invert={invertEff} />
       </div>
       <div className="mc-bottom">
         {!isStatus && <span className="mc-stat"><b>PWR</b> <span className="mc-val">{powerLabel}</span></span>}

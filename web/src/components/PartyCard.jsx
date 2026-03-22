@@ -3,7 +3,7 @@ import useMoveData from '../hooks/useMoveData';
 import TypeBadge from './TypeBadge';
 import MoveCard from './MoveCard';
 import { TYPE_COLORS } from '../utils/types';
-import { getEffectiveness } from '../utils/typeEffectiveness';
+import { getEffectiveness, getTypeMatchup } from '../utils/typeEffectiveness';
 
 function hpColor(ratio) {
   if (ratio > 0.5) return '#34d399';
@@ -57,10 +57,16 @@ export default function PartyCard({ mon, routeName, isActiveBattler, inBattle, o
   const ivs        = mon.ivs || mon.IVs || null;
   const evs        = mon.evs || mon.EVs || null;
   const rawMoves   = mon.moveNames || mon.move_names || [];
+  const moveSlots  = [];
+  for (let i = 0; i < 4; i++) moveSlots.push(rawMoves[i] || null);
   const moveData   = useMoveData(inBattle ? rawMoves : []);
+  const matchup    = isActiveBattler ? getTypeMatchup(types, opponentTypes) : null;
+
+  const matchupCls = matchup === 'advantage' ? 'pc-matchup-adv'
+    : matchup === 'disadvantage' ? 'pc-matchup-disadv' : '';
 
   return (
-    <div className={`pc ${alive ? '' : 'pc-dead'} ${isActiveBattler ? 'pc-active-battler' : ''} ${inBattle && !isActiveBattler ? 'pc-battle-inactive' : ''}`}>
+    <div className={`pc ${alive ? '' : 'pc-dead'} ${isActiveBattler ? 'pc-active-battler' : ''} ${inBattle && !isActiveBattler ? 'pc-battle-inactive' : ''} ${matchupCls}`}>
       <div className="pc-header" style={{ background: typeGradient(types) }}>
         <div className="pc-level-block">
           <span className="pc-level-label">Level</span>
@@ -115,8 +121,8 @@ export default function PartyCard({ mon, routeName, isActiveBattler, inBattle, o
 
       {inBattle ? (
         <div className="pc-battle-moves">
-          {rawMoves.map((name, i) => {
-            const md = moveData.get(name);
+          {moveSlots.map((name, i) => {
+            const md = name ? moveData.get(name) : undefined;
             const eff = md && md.type ? getEffectiveness(md.type, opponentTypes) : null;
             return <MoveCard key={i} name={name} data={md} effectiveness={eff} compact />;
           })}

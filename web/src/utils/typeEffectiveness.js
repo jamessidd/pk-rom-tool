@@ -50,6 +50,30 @@ function lookupMultiplier(atkType, defType) {
  * @param {string[]} defenderTypes - capitalized types from party data (e.g. ["Grass", "Steel"])
  * @returns {{ multiplier: number, label: string|null }}
  */
+export function getTypeMatchup(myTypes, theirTypes) {
+  if (!myTypes?.length || !theirTypes?.length) return 'neutral';
+
+  let myBest = 1;
+  for (const mt of myTypes) {
+    const atk = mt.toLowerCase();
+    let m = 1;
+    for (const dt of theirTypes) m *= lookupMultiplier(atk, dt.toLowerCase());
+    if (m > myBest) myBest = m;
+  }
+
+  let theirBest = 1;
+  for (const tt of theirTypes) {
+    const atk = tt.toLowerCase();
+    let m = 1;
+    for (const dt of myTypes) m *= lookupMultiplier(atk, dt.toLowerCase());
+    if (m > theirBest) theirBest = m;
+  }
+
+  if (myBest > theirBest) return 'advantage';
+  if (theirBest > myBest) return 'disadvantage';
+  return 'neutral';
+}
+
 export function getEffectiveness(moveType, defenderTypes) {
   if (!moveType || !defenderTypes || defenderTypes.length === 0) {
     return { multiplier: 1, label: null };
@@ -63,9 +87,9 @@ export function getEffectiveness(moveType, defenderTypes) {
 
   if (mult === 1) return { multiplier: 1, label: null };
   if (mult === 0) return { multiplier: 0, label: 'Immune' };
-  if (mult >= 4)  return { multiplier: mult, label: 'Super Effective' };
-  if (mult >= 2)  return { multiplier: mult, label: 'Effective' };
-  if (mult <= 0.25) return { multiplier: mult, label: 'Not Effective' };
-  if (mult < 1)   return { multiplier: mult, label: 'Not Effective' };
+  if (mult >= 4)  return { multiplier: mult, label: 'Super Effective (4x)' };
+  if (mult >= 2)  return { multiplier: mult, label: 'Super Effective' };
+  if (mult <= 0.25) return { multiplier: mult, label: 'Not Very Effective' };
+  if (mult < 1)   return { multiplier: mult, label: 'Not Very Effective' };
   return { multiplier: mult, label: null };
 }
