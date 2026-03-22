@@ -4,6 +4,7 @@ import useMoveData from '../hooks/useMoveData';
 import TypeBadge from './TypeBadge';
 import MoveCard from './MoveCard';
 import { TYPE_COLORS } from '../utils/types';
+import { getEffectiveness } from '../utils/typeEffectiveness';
 
 const SHOWDOWN_ITEMS = 'https://play.pokemonshowdown.com/sprites/itemicons';
 
@@ -34,7 +35,7 @@ const STATUS_META = {
   Frozen:    { label: 'FRZ', cls: 'pc-status-frz' },
 };
 
-export default function BattleCard({ enemyParty }) {
+export default function BattleCard({ enemyParty, playerLeadTypes }) {
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const lastPartyRef = useRef([]);
@@ -68,13 +69,13 @@ export default function BattleCard({ enemyParty }) {
     <div className={`bc-wrap ${exiting ? 'bc-exit' : 'bc-enter'}`}>
       <h3 className="section-title">Opponent</h3>
       {displayParty.map((mon, i) => (
-        <BattleOpponent key={mon.personality || i} mon={mon} isActive={i === 0} />
+        <BattleOpponent key={mon.personality || i} mon={mon} isActive={i === 0} playerLeadTypes={playerLeadTypes} />
       ))}
     </div>
   );
 }
 
-function BattleOpponent({ mon, isActive }) {
+function BattleOpponent({ mon, isActive, playerLeadTypes }) {
   const species = mon.species || '';
   const { sprite: img } = usePokemonData(species);
   const nickname = mon.nickname || species || '???';
@@ -164,9 +165,13 @@ function BattleOpponent({ mon, isActive }) {
 
         {isActive && (
           <div className="bc-moves">
-            {moveSlots.map((name, i) => (
-              <MoveCard key={i} name={name} data={name ? moveData.get(name) : undefined} />
-            ))}
+            {moveSlots.map((name, i) => {
+              const md = name ? moveData.get(name) : undefined;
+              const eff = md && md.type && playerLeadTypes?.length
+                ? getEffectiveness(md.type, playerLeadTypes)
+                : null;
+              return <MoveCard key={i} name={name} data={md} effectiveness={eff} />;
+            })}
           </div>
         )}
       </div>

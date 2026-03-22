@@ -327,6 +327,8 @@ export default function App() {
           const activeTrainer = finalTrainerParties.find(t => t.playerId === activeId) || finalTrainerParties[0];
           const isViewingLocal = activeId === localPlayerId;
           const showBattle = isViewingLocal && inBattle;
+          const leadOpponentTypes = enemyParty?.[0]?.types || [];
+          const leadPlayerTypes = activeTrainer?.party?.[0]?.types || [];
 
           return (
             <div className="layout-multi-new">
@@ -352,6 +354,7 @@ export default function App() {
                   onSelectTrainer={setSelectedTrainerId}
                   activePlayerId={activeId}
                   inBattle={isViewingLocal && inBattle}
+                  opponentTypes={isViewingLocal ? leadOpponentTypes : []}
                 />
               </section>
               <aside className={`multi-battle-col${!isViewingLocal ? ' multi-battle-disabled' : ''}`}>
@@ -359,7 +362,7 @@ export default function App() {
                 {!isViewingLocal
                   ? <div className="multi-battle-placeholder multi-battle-remote"><span>Battle data not available for remote players</span></div>
                   : showBattle
-                    ? <BattleCard enemyParty={enemyParty} />
+                    ? <BattleCard enemyParty={enemyParty} playerLeadTypes={leadPlayerTypes} />
                     : <div className="multi-battle-placeholder"><span>No active battle</span></div>
                 }
               </aside>
@@ -374,26 +377,30 @@ export default function App() {
           );
         })()}
 
-        {localOk && isRoom && !isMulti && !isMockMode && (
-          <div className="layout-solo">
-            <section className="solo-party">
-              <h2 className="section-title">Party</h2>
-              <div className="party-grids">
-                {trainerParties.map(t => (
-                  <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} />
-                ))}
-              </div>
-            </section>
-            <section className="solo-encounters">
-              {roomLinks.length > 0 && <RouteLinkList links={roomLinks} players={roomPlayers} />}
-              <div className="solo-events">
-                <h2 className="section-title">Room Events</h2>
-                <EventFeed events={[...roomEvents, ...battleEvents]} />
-              </div>
-            </section>
-            <BattleCard enemyParty={enemyParty} />
-          </div>
-        )}
+        {localOk && isRoom && !isMulti && !isMockMode && (() => {
+          const soloLeadOpponentTypes = enemyParty?.[0]?.types || [];
+          const soloLeadPlayerTypes = trainerParties[0]?.party?.[0]?.types || [];
+          return (
+            <div className="layout-solo">
+              <section className="solo-party">
+                <h2 className="section-title">Party</h2>
+                <div className="party-grids">
+                  {trainerParties.map(t => (
+                    <PartyGrid key={t.playerId} trainerName={t.name} party={t.party} routeMap={roomRouteMap} trainerSprite={t.spriteUrl} inBattle={inBattle} opponentTypes={soloLeadOpponentTypes} />
+                  ))}
+                </div>
+              </section>
+              <section className="solo-encounters">
+                {roomLinks.length > 0 && <RouteLinkList links={roomLinks} players={roomPlayers} />}
+                <div className="solo-events">
+                  <h2 className="section-title">Room Events</h2>
+                  <EventFeed events={[...roomEvents, ...battleEvents]} />
+                </div>
+              </section>
+              <BattleCard enemyParty={enemyParty} playerLeadTypes={soloLeadPlayerTypes} />
+            </div>
+          );
+        })()}
       </main>
 
       {settingsOpen && (

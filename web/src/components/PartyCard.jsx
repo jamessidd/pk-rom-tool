@@ -1,6 +1,9 @@
 import usePokemonData from '../hooks/usePokemonData';
+import useMoveData from '../hooks/useMoveData';
 import TypeBadge from './TypeBadge';
+import MoveCard from './MoveCard';
 import { TYPE_COLORS } from '../utils/types';
+import { getEffectiveness } from '../utils/typeEffectiveness';
 
 function hpColor(ratio) {
   if (ratio > 0.5) return '#34d399';
@@ -34,7 +37,7 @@ const STATUS_META = {
   Frozen:    { label: 'FRZ', cls: 'pc-status-frz' },
 };
 
-export default function PartyCard({ mon, routeName, isActiveBattler }) {
+export default function PartyCard({ mon, routeName, isActiveBattler, inBattle, opponentTypes }) {
   const species    = mon.species_name || mon.species || '';
   const { sprite: img, baseStats } = usePokemonData(species);
   const nickname   = mon.nickname || species || '???';
@@ -53,6 +56,8 @@ export default function PartyCard({ mon, routeName, isActiveBattler }) {
   const statusInfo = statusRaw && statusRaw !== 'Healthy' ? STATUS_META[statusRaw] : null;
   const ivs        = mon.ivs || mon.IVs || null;
   const evs        = mon.evs || mon.EVs || null;
+  const rawMoves   = mon.moveNames || mon.move_names || [];
+  const moveData   = useMoveData(inBattle ? rawMoves : []);
 
   return (
     <div className={`pc ${alive ? '' : 'pc-dead'} ${isActiveBattler ? 'pc-active-battler' : ''}`}>
@@ -108,8 +113,18 @@ export default function PartyCard({ mon, routeName, isActiveBattler }) {
         )}
       </div>
 
-      {(baseStats || ivs || evs) && (
-        <StatFooter baseStats={baseStats} ivs={ivs} evs={evs} />
+      {inBattle ? (
+        <div className="pc-battle-moves">
+          {rawMoves.map((name, i) => {
+            const md = moveData.get(name);
+            const eff = md && md.type ? getEffectiveness(md.type, opponentTypes) : null;
+            return <MoveCard key={i} name={name} data={md} effectiveness={eff} compact />;
+          })}
+        </div>
+      ) : (
+        (baseStats || ivs || evs) && (
+          <StatFooter baseStats={baseStats} ivs={ivs} evs={evs} />
+        )
       )}
     </div>
   );
