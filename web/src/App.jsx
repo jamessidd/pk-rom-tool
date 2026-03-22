@@ -358,6 +358,7 @@ export default function App() {
                 />
               </section>
               <aside className={`multi-battle-col${!isViewingLocal ? ' multi-battle-disabled' : ''}`}>
+                <h3 className="section-title">Battle</h3>
                 {!isViewingLocal
                   ? <div className="multi-battle-placeholder multi-battle-remote"><span>Battle data not available for remote players</span></div>
                   : showBattle

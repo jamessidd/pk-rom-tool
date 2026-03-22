@@ -92,9 +92,12 @@ export default function MoveCard({ name, data, effectiveness, compact, invertEff
         <div className="mc-top">
           <span className="mc-type" style={{ background: typeColor }}>{typeName}</span>
           <span className="mc-name">{displayName}</span>
-          {!isStatus && <span className="mc-stat-inline"><span className="mc-val">{powerLabel}</span>/<span className="mc-val">{accLabel}</span></span>}
-          <CategoryIcon damageClass={data.damageClass} />
           <EffBadge eff={effectiveness} damageClass={data.damageClass} invert={invertEff} />
+        </div>
+        <div className="mc-bottom">
+          {!isStatus && <span className="mc-stat"><b>PWR</b> <span className="mc-val">{powerLabel}</span></span>}
+          <span className="mc-stat"><b>ACC</b> <span className="mc-val">{accLabel}</span></span>
+          <CategoryIcon damageClass={data.damageClass} />
         </div>
       </div>
     );

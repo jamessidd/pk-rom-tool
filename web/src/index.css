@@ -900,10 +900,10 @@ button:active { transform:scale(0.97); }
 .mc-eff-nve { background:rgba(239,68,68,0.18); color:#f87171; }
 .mc-eff-immune { background:rgba(255,255,255,0.08); color:var(--text-muted); }
 
-/* Compact variant for party cards during battle */
+/* Compact variant for party cards during battle (two-row, no description) */
 .mc-compact {
-  min-height:40px;
-  padding:8px 11px;
+  min-height:42px;
+  padding:7px 10px;
 }
 .mc-compact .mc-type {
   font-size:9px; padding:2px 6px;
@@ -911,17 +911,20 @@ button:active { transform:scale(0.97); }
 .mc-compact .mc-name {
   font-size:12px;
 }
+.mc-compact .mc-bottom {
+  margin-top:2px;
+}
+.mc-compact .mc-stat {
+  font-size:10px;
+}
 .mc-compact .mc-cls-icon {
-  height:14px;
+  height:13px;
 }
 .mc-compact .mc-eff {
-  font-size:10px; padding:2px 6px;
-}
-.mc-compact .mc-stat-inline {
-  font-size:11px;
+  font-size:9px; padding:2px 5px;
 }
 .mc-compact.mc-empty {
-  min-height:40px;
+  min-height:42px;
   border:1px dashed rgba(255,255,255,0.08);
   border-left:4px solid transparent;
   background:rgba(255,255,255,0.015);

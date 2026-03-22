@@ -151,10 +151,10 @@ function BattleOpponent({ mon, isActive, playerLeadTypes }) {
           </div>
         )}
 
-        {isActive && (
+        {isActive && moveSlots.some(Boolean) && (
           <div className="bc-moves">
-            {moveSlots.map((name, i) => {
-              const md = name ? moveData.get(name) : undefined;
+            {moveSlots.filter(Boolean).map((name, i) => {
+              const md = moveData.get(name);
               const eff = md && md.type && playerLeadTypes?.length
                 ? getEffectiveness(md.type, playerLeadTypes)
                 : null;
