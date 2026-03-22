@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -19,9 +19,7 @@
 }
 
 body {
-  font-family: 'Press Start 2P', monospace;
-  font-weight: 400;
-  font-synthesis: none;
+  font-family: 'VT323', monospace;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
