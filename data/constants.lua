@@ -52,8 +52,7 @@ local pokemonData = {
 		"Normal", "Fighting", "Flying", "Poison", "Ground", "Rock",
 		"Bug", "Ghost", "Steel", "???", "Fire", "Water",
 		"Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark",
-		"Fairy",
-		[23] = "Fairy"
+		[24] = "Fairy"
 	},
 	hiddenPowerType = {
 		"Fighting", "Flying", "Poison", "Ground", "Rock", "Bug",

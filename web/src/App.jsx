@@ -325,6 +325,8 @@ export default function App() {
           const timeline = getTimeline(gameName);
           const activeId = selectedTrainerId || finalTrainerParties[0]?.playerId;
           const activeTrainer = finalTrainerParties.find(t => t.playerId === activeId) || finalTrainerParties[0];
+          const isViewingLocal = activeId === localPlayerId;
+          const showBattle = isViewingLocal && inBattle;
 
           return (
             <div className="layout-multi-new">
@@ -349,14 +351,16 @@ export default function App() {
                   allTrainers={finalTrainerParties}
                   onSelectTrainer={setSelectedTrainerId}
                   activePlayerId={activeId}
-                  inBattle={inBattle}
+                  inBattle={isViewingLocal && inBattle}
                 />
               </section>
-              <aside className="multi-battle-col">
+              <aside className={`multi-battle-col${!isViewingLocal ? ' multi-battle-disabled' : ''}`}>
                 <h3 className="section-title">Battle</h3>
-                {inBattle
-                  ? <BattleCard enemyParty={enemyParty} />
-                  : <div className="multi-battle-placeholder"><span>No active battle</span></div>
+                {!isViewingLocal
+                  ? <div className="multi-battle-placeholder multi-battle-remote"><span>Battle data not available for remote players</span></div>
+                  : showBattle
+                    ? <BattleCard enemyParty={enemyParty} />
+                    : <div className="multi-battle-placeholder"><span>No active battle</span></div>
                 }
               </aside>
               <aside className="multi-timeline-col">
