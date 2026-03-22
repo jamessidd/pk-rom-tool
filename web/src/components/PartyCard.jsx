@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from 'react';
 import usePokemonData from '../hooks/usePokemonData';
 import useMoveData from '../hooks/useMoveData';
 import TypeBadge from './TypeBadge';
@@ -65,8 +66,19 @@ export default function PartyCard({ mon, routeName, isActiveBattler, inBattle, o
   const matchupCls = matchup === 'advantage' ? 'pc-matchup-adv'
     : matchup === 'disadvantage' ? 'pc-matchup-disadv' : '';
 
+  const [modeFlash, setModeFlash] = useState(false);
+  const prevBattle = useRef(inBattle);
+  useEffect(() => {
+    if (prevBattle.current !== inBattle) {
+      setModeFlash(true);
+      const t = setTimeout(() => setModeFlash(false), 200);
+      prevBattle.current = inBattle;
+      return () => clearTimeout(t);
+    }
+  }, [inBattle]);
+
   return (
-    <div className={`pc ${alive ? '' : 'pc-dead'} ${isActiveBattler ? 'pc-active-battler' : ''} ${inBattle && !isActiveBattler ? 'pc-battle-inactive' : ''} ${matchupCls}`}>
+    <div className={`pc ${alive ? '' : 'pc-dead'} ${isActiveBattler ? 'pc-active-battler' : ''} ${inBattle && !isActiveBattler ? 'pc-battle-inactive' : ''} ${matchupCls} ${modeFlash ? 'pc-mode-flash' : ''}`}>
       <div className="pc-header" style={{ background: typeGradient(types) }}>
         <div className="pc-level-block">
           <span className="pc-level-label">Level</span>

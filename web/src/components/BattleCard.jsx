@@ -36,46 +36,24 @@ const STATUS_META = {
 };
 
 export default function BattleCard({ enemyParty, playerLeadTypes }) {
-  const [visible, setVisible] = useState(false);
-  const [exiting, setExiting] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
-  const lastPartyRef = useRef([]);
   const prevHadEnemies = useRef(false);
 
   const hasEnemies = enemyParty && enemyParty.length > 0;
 
   useEffect(() => {
-    if (hasEnemies) {
-      lastPartyRef.current = enemyParty;
-      setExiting(false);
-      if (!prevHadEnemies.current) {
-        setShowFlash(true);
-        setTimeout(() => setShowFlash(false), 500);
-      }
-      setVisible(true);
-    } else if (visible) {
-      setExiting(true);
+    if (hasEnemies && !prevHadEnemies.current) {
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 250);
     }
     prevHadEnemies.current = hasEnemies;
   }, [hasEnemies]);
 
-  useEffect(() => {
-    if (!exiting) return;
-    const t = setTimeout(() => {
-      setVisible(false);
-      setExiting(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [exiting]);
-
-  if (!visible) return null;
-
-  const displayParty = hasEnemies ? enemyParty : lastPartyRef.current;
+  if (!hasEnemies) return null;
 
   return (
-    <div className={`bc-wrap ${exiting ? 'bc-exit' : 'bc-enter'} ${showFlash ? 'bc-flash' : ''}`}>
-      <h3 className="section-title">Opponent</h3>
-      {displayParty.map((mon, i) => (
+    <div className={`bc-wrap ${showFlash ? 'bc-flash' : ''}`}>
+      {enemyParty.map((mon, i) => (
         <BattleOpponent key={mon.personality || i} mon={mon} isActive={i === 0} playerLeadTypes={playerLeadTypes} />
       ))}
     </div>
