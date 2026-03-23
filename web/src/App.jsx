@@ -302,6 +302,7 @@ export default function App() {
               </section>
               {inBattle && (
                 <section className="col-battle">
+                  <h2 className="section-title">Battle</h2>
                   <BattleCard enemyParty={enemyParty} />
                 </section>
               )}
@@ -346,6 +347,7 @@ export default function App() {
               </section>
               {showBattle && (
                 <section className="col-battle">
+                  <h3 className="section-title">Battle</h3>
                   <BattleCard enemyParty={enemyParty} playerLeadTypes={leadPlayerTypes} />
                 </section>
               )}
@@ -385,6 +387,7 @@ export default function App() {
               </section>
               {inBattle && (
                 <section className="col-battle">
+                  <h2 className="section-title">Battle</h2>
                   <BattleCard enemyParty={enemyParty} playerLeadTypes={soloLeadPlayerTypes} />
                 </section>
               )}
