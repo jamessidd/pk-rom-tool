@@ -1,7 +1,28 @@
 import useSprite from '../hooks/useSprite';
 import { TYPE_COLORS } from '../utils/types';
 
-export default function SoulLinkTimeline({ timeline, encounters, gameName }) {
+const TEAM_COLORS = { A: '#3b82f6', B: '#ef4444' };
+
+function buildTeamProgress(teams, timeline) {
+  if (!teams || !timeline) return null;
+  const { links } = teams;
+  const routeNames = new Map();
+  for (const link of (links || [])) {
+    const name = link.routeName || link.route_name || '';
+    if (name) routeNames.set(name, link.team || '');
+  }
+
+  const teamLast = {};
+  for (let i = 0; i < timeline.length; i++) {
+    const entry = timeline[i];
+    if (entry.type !== 'route') continue;
+    const team = routeNames.get(entry.name);
+    if (team) teamLast[team] = i;
+  }
+  return teamLast;
+}
+
+export default function SoulLinkTimeline({ timeline, encounters, gameName, teams }) {
   if (!timeline || timeline.length === 0) {
     return (
       <div className="slt">
@@ -20,23 +41,37 @@ export default function SoulLinkTimeline({ timeline, encounters, gameName }) {
     }
   }
 
+  const teamProgress = buildTeamProgress(teams, timeline);
+
   return (
     <div className="slt">
       <div className="slt-title">
-        Soul Link Timeline
+        {teams ? 'Race Timeline' : 'Soul Link Timeline'}
         {gameName && <span className="slt-game-name">{gameName}</span>}
+        {teamProgress && (
+          <span className="slt-team-legend">
+            {Object.entries(teamProgress).map(([team]) => (
+              <span key={team} className="slt-team-tag" style={{ background: TEAM_COLORS[team] || '#666' }}>
+                {team}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
       <div className="slt-list">
         {timeline.map((entry, i) => {
+          const teamMarkers = teamProgress
+            ? Object.entries(teamProgress).filter(([, idx]) => idx === i).map(([t]) => t)
+            : [];
           if (entry.type === 'route') {
             const mon = encounterByName.get(entry.name);
-            return <RouteRow key={`r-${i}`} entry={entry} mon={mon} />;
+            return <RouteRow key={`r-${i}`} entry={entry} mon={mon} teamMarkers={teamMarkers} />;
           }
           if (entry.type === 'boss') {
-            return <BossRow key={`b-${i}`} entry={entry} />;
+            return <BossRow key={`b-${i}`} entry={entry} teamMarkers={teamMarkers} />;
           }
           if (entry.type === 'rival') {
-            return <RivalRow key={`v-${i}`} entry={entry} />;
+            return <RivalRow key={`v-${i}`} entry={entry} teamMarkers={teamMarkers} />;
           }
           return null;
         })}
@@ -45,9 +80,24 @@ export default function SoulLinkTimeline({ timeline, encounters, gameName }) {
   );
 }
 
-function RouteRow({ entry, mon }) {
+function TeamMarkers({ markers }) {
+  if (!markers || markers.length === 0) return null;
   return (
-    <div className={`slt-route ${mon ? '' : 'slt-route-empty'}`}>
+    <div className="slt-team-markers">
+      {markers.map(t => (
+        <span key={t} className="slt-team-marker" style={{ background: TEAM_COLORS[t] || '#666' }} title={`Team ${t} is here`}>
+          {t}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RouteRow({ entry, mon, teamMarkers }) {
+  const hasMarker = teamMarkers && teamMarkers.length > 0;
+  return (
+    <div className={`slt-route ${mon ? '' : 'slt-route-empty'} ${hasMarker ? 'slt-route-marked' : ''}`}>
+      <TeamMarkers markers={teamMarkers} />
       <div className="slt-route-name">{entry.name}</div>
       {mon ? <EncounterPreview mon={mon} /> : (
         <div className="slt-route-placeholder">No encounter</div>
@@ -78,11 +128,13 @@ function EncounterPreview({ mon }) {
   );
 }
 
-function BossRow({ entry }) {
+function BossRow({ entry, teamMarkers }) {
   const color = entry.specialty ? (TYPE_COLORS[capitalize(entry.specialty)] || '#666') : 'var(--accent)';
+  const hasMarker = teamMarkers && teamMarkers.length > 0;
 
   return (
-    <div className="slt-boss" style={{ borderLeftColor: color }}>
+    <div className={`slt-boss ${hasMarker ? 'slt-route-marked' : ''}`} style={{ borderLeftColor: color }}>
+      <TeamMarkers markers={teamMarkers} />
       <div className="slt-boss-header">
         <span className="slt-boss-name">{entry.name}</span>
         {entry.specialty && (
@@ -97,9 +149,11 @@ function BossRow({ entry }) {
   );
 }
 
-function RivalRow({ entry }) {
+function RivalRow({ entry, teamMarkers }) {
+  const hasMarker = teamMarkers && teamMarkers.length > 0;
   return (
-    <div className="slt-rival">
+    <div className={`slt-rival ${hasMarker ? 'slt-route-marked' : ''}`}>
+      <TeamMarkers markers={teamMarkers} />
       <span className="slt-rival-icon">VS</span>
       <div className="slt-rival-info">
         <span className="slt-rival-name">{entry.name}</span>

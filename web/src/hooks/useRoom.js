@@ -129,15 +129,16 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     } catch { /* will retry next cycle */ }
   }, [syncUrl, localSoul, localParty, enemyParty, playerId, playerName, refreshRoom]);
 
-  const create = useCallback(async () => {
+  const create = useCallback(async (roomMode, maxPlayers) => {
     if (!localStatus?.game?.initialized) { setError('Local game not detected.'); return; }
     if (!playerName) { setError('Enter a display name.'); return; }
     setError('');
     try {
-      const { code } = await apiCreateRoom(syncUrl);
+      const { code } = await apiCreateRoom(syncUrl, roomMode, maxPlayers);
       setRoomCode(code);
       const profile = buildProfile(localStatus);
-      const result = await apiJoinRoom(syncUrl, code, playerId, playerName, profile);
+      const team = roomMode === 'race' ? 'A' : '';
+      const result = await apiJoinRoom(syncUrl, code, playerId, playerName, profile, team);
       if (!result.compatibility?.compatible) { setError(result.compatibility?.reason || 'Incompatible.'); return; }
       setMode('room');
       connectWs(code);
@@ -146,7 +147,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     } catch (e) { setError(e.message); }
   }, [syncUrl, playerName, playerId, localStatus, connectWs, refreshRoom]);
 
-  const join = useCallback(async (code) => {
+  const join = useCallback(async (code, team) => {
     if (!code) { setError('Enter a room code.'); return; }
     if (!localStatus?.game?.initialized) { setError('Local game not detected.'); return; }
     if (!playerName) { setError('Enter a display name.'); return; }
@@ -155,7 +156,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     setRoomCode(upper);
     try {
       const profile = buildProfile(localStatus);
-      const result = await apiJoinRoom(syncUrl, upper, playerId, playerName, profile);
+      const result = await apiJoinRoom(syncUrl, upper, playerId, playerName, profile, team || '');
       if (!result.compatibility?.compatible) { setError(result.compatibility?.reason || 'Incompatible.'); return; }
       setMode('room');
       connectWs(upper);

@@ -190,11 +190,42 @@ button:active { transform:scale(0.97); }
 .sm-divider { height:1px; background:var(--glass-border); }
 .sm-section { display:flex; flex-direction:column; gap:4px; }
 .sm-room-actions { display:flex; flex-direction:column; gap:8px; }
-.sm-room-info { display:flex; align-items:center; gap:10px; }
+.sm-room-info { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .sm-room-code { font-size:13px; font-weight:700; color:var(--accent); letter-spacing:1px; }
+.sm-room-mode {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  padding:3px 8px; border-radius:999px;
+  background:rgba(239,68,68,0.15); color:#fca5a5;
+}
 .sm-advanced { display:flex; flex-direction:column; gap:10px; }
 .join-row { display:flex; gap:6px; }
 .code-input { flex:1; text-transform:uppercase; font-weight:700; letter-spacing:2px; text-align:center; }
+.sm-mode-row { display:flex; gap:4px; }
+.sm-mode-btn {
+  flex:1; padding:8px; border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.04); border:1px solid var(--glass-border);
+  color:var(--text-muted); font-size:12px; font-weight:600; cursor:pointer;
+  transition:all .15s;
+}
+.sm-mode-btn:hover { background:rgba(255,255,255,0.08); }
+.sm-mode-active {
+  background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.3);
+  color:var(--accent);
+}
+.sm-race-opts { display:flex; gap:10px; align-items:center; }
+.sm-inline-label {
+  display:flex; align-items:center; gap:8px;
+  font-size:11px; color:var(--text-muted);
+}
+.sm-select {
+  padding:4px 8px; border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.06); border:1px solid var(--glass-border);
+  color:var(--text); font-size:12px; cursor:pointer;
+}
+.sm-team-select { width:80px; }
+.sm-divider-thin {
+  height:1px; background:var(--glass-border); margin:4px 0;
+}
 
 .ctrl-error { font-size:12px; color:var(--red); padding:4px 0; }
 .ctrl-sprite-btn {
@@ -1354,9 +1385,24 @@ button:active { transform:scale(0.97); }
   border-radius:8px;
   min-height:38px;
   transition:border-color .15s;
+  position:relative;
 }
 .slt-route:hover { border-color:rgba(255,255,255,0.12); }
 .slt-route-empty { opacity:0.5; }
+.slt-route-marked { border-color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.04); }
+.slt-team-legend { display:flex; gap:4px; margin-left:auto; }
+.slt-team-tag {
+  font-size:8px; font-weight:700; padding:2px 6px;
+  border-radius:4px; color:#fff;
+}
+.slt-team-markers {
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  display:flex; gap:3px;
+}
+.slt-team-marker {
+  font-size:7px; font-weight:800; padding:2px 5px;
+  border-radius:3px; color:#fff; line-height:1;
+}
 .slt-route-name {
   font-size:10px; font-weight:700;
   color:var(--text); flex-shrink:0;
@@ -1397,6 +1443,7 @@ button:active { transform:scale(0.97); }
 }
 
 .slt-boss {
+  position:relative;
   padding:5px 10px;
   border-left:3px solid var(--accent);
   border-radius:0 6px 6px 0;
@@ -1426,6 +1473,7 @@ button:active { transform:scale(0.97); }
 }
 
 .slt-rival {
+  position:relative;
   display:flex; align-items:center; gap:8px;
   padding:4px 10px;
   margin:1px 0;
@@ -1795,6 +1843,12 @@ button:active { transform:scale(0.97); }
 .pb-text strong {
   color:var(--gold);
 }
+
+/* ---- Race Mode ---- */
+.race-team-section { margin-bottom:12px; }
+.race-team-header { position:relative; }
+.race-team-a { border-bottom-color:#3b82f6; color:#93c5fd; }
+.race-team-b { border-bottom-color:#ef4444; color:#fca5a5; }
 
 /* ---- Responsive ---- */
 

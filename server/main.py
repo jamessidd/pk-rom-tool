@@ -16,6 +16,7 @@ import database as db
 from models import (
     CatchRecord,
     CompatibilityResult,
+    CreateRoomRequest,
     CreateRoomResponse,
     EventType,
     GameProfile,
@@ -28,6 +29,7 @@ from models import (
     ReassignRequest,
     ReconcileRequest,
     Room,
+    RoomSettings,
     RoomState,
     SyncPokemon,
     generate_room_code,
@@ -118,6 +120,11 @@ def auto_assign_catch(room: Room, catch: CatchRecord):
         player_map[catch.route] = catch.personality
 
 
+def _get_player_team(room: Room, player_id: str) -> str:
+    presence = room.players.get(player_id)
+    return (presence.team if presence else "") or ""
+
+
 def auto_pair_catches(room: Room):
     catch_index: dict[tuple[str, int], CatchRecord] = {}
     routes_seen: dict[int, str] = {}
@@ -127,25 +134,40 @@ def auto_pair_catches(room: Room):
             routes_seen[catch.route] = catch.route_name
         auto_assign_catch(room, catch)
 
-    room.pairs = []
-    all_routes: set[int] = set()
-    for player_map in room.route_assignments.values():
-        all_routes.update(player_map.keys())
+    is_race = room.settings.mode == "race"
 
-    for route in sorted(all_routes):
-        route_name = routes_seen.get(route, "")
-        player_catches: dict[str, CatchRecord] = {}
-        for player_id, player_map in room.route_assignments.items():
-            personality = player_map.get(route)
-            if personality is None:
-                continue
-            catch = catch_index.get((player_id, personality))
-            if catch:
-                player_catches[player_id] = catch
-                if not route_name and catch.route_name:
-                    route_name = catch.route_name
-        if player_catches:
-            room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches))
+    if is_race:
+        from collections import defaultdict
+        teams: dict[str, list[str]] = defaultdict(list)
+        for pid in room.players:
+            teams[_get_player_team(room, pid) or "A"].append(pid)
+        team_groups = list(teams.items())
+    else:
+        team_groups = [("", list(room.players.keys()))]
+
+    room.pairs = []
+    for team_label, team_pids in team_groups:
+        team_pid_set = set(team_pids)
+        all_routes: set[int] = set()
+        for pid in team_pids:
+            player_map = room.route_assignments.get(pid, {})
+            all_routes.update(player_map.keys())
+
+        for route in sorted(all_routes):
+            route_name = routes_seen.get(route, "")
+            player_catches: dict[str, CatchRecord] = {}
+            for player_id in team_pids:
+                player_map = room.route_assignments.get(player_id, {})
+                personality = player_map.get(route)
+                if personality is None:
+                    continue
+                catch = catch_index.get((player_id, personality))
+                if catch:
+                    player_catches[player_id] = catch
+                    if not route_name and catch.route_name:
+                        route_name = catch.route_name
+            if player_catches:
+                room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches, team=team_label))
     room.pairs.sort(key=lambda pair: pair.route)
 
 
@@ -159,9 +181,15 @@ def propagate_death(room: Room, dead_personality: int, dead_player_id: str):
             break
 
     if dead_route is not None:
+        is_race = room.settings.mode == "race"
+        dead_team = _get_player_team(room, dead_player_id) if is_race else None
         for catch in room.catches:
             if catch.route == dead_route:
-                catch.alive = False
+                if is_race:
+                    if _get_player_team(room, catch.player_id) == dead_team:
+                        catch.alive = False
+                else:
+                    catch.alive = False
     auto_pair_catches(room)
     return dead_route
 
@@ -248,14 +276,20 @@ def update_in_party_flags(room: Room, snapshot: PlayerSnapshot):
 
 
 @app.post("/rooms", response_model=CreateRoomResponse)
-async def create_room():
+async def create_room(request: CreateRoomRequest = None):
     code = generate_room_code()
     while code in rooms:
         code = generate_room_code()
-    room = Room(code=code)
+    settings = RoomSettings()
+    if request:
+        if request.mode in ("soullink", "race"):
+            settings.mode = request.mode
+        if request.max_players > 0:
+            settings.max_players = request.max_players
+    room = Room(code=code, settings=settings)
     rooms[code] = room
     await db.save_room(room)
-    logger.info("Room created: %s", code)
+    logger.info("Room created: %s (mode=%s, max=%s)", code, settings.mode, settings.max_players)
     return CreateRoomResponse(code=code)
 
 
@@ -271,22 +305,34 @@ async def join_room(code: str, request: JoinRoomRequest):
     if not compatibility.compatible:
         return JoinRoomResponse(code=code, compatibility=compatibility, players=list(room.players.values()))
 
+    if room.settings.max_players > 0 and request.player_id not in room.players:
+        if len(room.players) >= room.settings.max_players:
+            return JoinRoomResponse(
+                code=code,
+                compatibility=CompatibilityResult(compatible=False, reason=f"Room is full ({room.settings.max_players} players max)"),
+                players=list(room.players.values()),
+            )
+
     if room.required_profile is None:
         room.required_profile = request.profile
         await db.save_room(room)
 
+    team = request.team or ""
     now = datetime.utcnow()
     existing = room.players.get(request.player_id)
     if existing:
         existing.player_name = request.player_name
         existing.profile = request.profile
         existing.last_seen = now
+        if team:
+            existing.team = team
         player = existing
     else:
         player = PlayerPresence(
             player_id=request.player_id,
             player_name=request.player_name,
             profile=request.profile,
+            team=team,
             joined_at=now,
             last_seen=now,
         )

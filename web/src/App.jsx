@@ -216,8 +216,12 @@ export default function App() {
     route: pair.route,
     routeName: pair.route_name,
     pokemon: pair.pokemon,
+    team: pair.team || '',
     anyDead: Object.values(pair.pokemon || {}).some(m => m.alive === false),
   }));
+
+  const roomMode = room.roomState?.settings?.mode || 'soullink';
+  const isRaceMode = roomMode === 'race';
 
   const mockPlayerCount = getMockPlayerCount();
   const mockDataRef = useRef(null);
@@ -409,18 +413,33 @@ export default function App() {
                   </div>
                 )}
                 <div className="right-encounters">
-                  {finalRoomLinks.length > 0 && (
+                  {isRaceMode && finalRoomLinks.length > 0 ? (
+                    <>
+                      {['A', 'B'].map(team => {
+                        const teamLinks = finalRoomLinks.filter(l => l.team === team);
+                        const teamPlayers = (finalRoomPlayers || []).filter(p => p.team === team);
+                        if (teamLinks.length === 0 && teamPlayers.length === 0) return null;
+                        return (
+                          <div key={team} className="race-team-section">
+                            <h3 className={`section-title race-team-header race-team-${team.toLowerCase()}`}>Team {team}</h3>
+                            {teamLinks.length > 0 && <RouteLinkList links={teamLinks} players={teamPlayers} />}
+                          </div>
+                        );
+                      })}
+                    </>
+                  ) : finalRoomLinks.length > 0 ? (
                     <>
                       <h3 className="section-title">Linked Encounters</h3>
                       <RouteLinkList links={finalRoomLinks} players={finalRoomPlayers} />
                     </>
-                  )}
+                  ) : null}
                 </div>
                 <div className="right-timeline">
                   <SoulLinkTimeline
                     timeline={timeline}
                     encounters={isMockMode ? [] : filteredSoloRoutes}
                     gameName={gameName}
+                    teams={isRaceMode ? { links: finalRoomLinks, players: finalRoomPlayers } : null}
                   />
                 </div>
               </aside>
@@ -478,6 +497,7 @@ export default function App() {
           onSolo={room.goSolo}
           mode={room.mode}
           error={room.error}
+          roomSettings={room.roomState?.settings}
           trainerSpriteId={trainerSpriteId}
           onOpenSpritePicker={() => setSpritePickerOpen(true)}
           onClose={() => setSettingsOpen(false)}

@@ -47,10 +47,14 @@ export async function fetchLocalEvents(base) {
   return json(`${base}/soullink/events`);
 }
 
-export async function createRoom(syncBase) {
-  return json(`${syncBase}/rooms`, { method: 'POST' });
+export async function createRoom(syncBase, mode, maxPlayers) {
+  return json(`${syncBase}/rooms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: mode || 'soullink', max_players: maxPlayers || 0 }),
+  });
 }
-export async function joinRoom(syncBase, code, playerId, playerName, profile) {
+export async function joinRoom(syncBase, code, playerId, playerName, profile, team) {
   return json(`${syncBase}/rooms/${code}/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -59,6 +63,7 @@ export async function joinRoom(syncBase, code, playerId, playerName, profile) {
       player_name: playerName,
       profile,
       source: 'local_browser',
+      team: team || '',
     }),
   });
 }

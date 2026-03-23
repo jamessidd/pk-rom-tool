@@ -48,6 +48,7 @@ class JoinRoomRequest(BaseModel):
     player_name: str
     profile: GameProfile
     source: SourceKind = SourceKind.LOCAL_BROWSER
+    team: str = ""
 
 
 class PlayerIdentity(BaseModel):
@@ -61,6 +62,8 @@ class RoomSettings(BaseModel):
     shiny_clause: bool = True
     species_clause: bool = False
     gift_clause: str = "separate"
+    mode: str = "soullink"
+    max_players: int = 0
 
 
 class SyncPokemon(BaseModel):
@@ -134,12 +137,14 @@ class PairGroup(BaseModel):
     route: int
     route_name: str
     pokemon: dict[str, CatchRecord] = {}
+    team: str = ""
 
 
 class PlayerPresence(BaseModel):
     player_id: str
     player_name: str
     profile: GameProfile
+    team: str = ""
     joined_at: datetime = Field(default_factory=datetime.utcnow)
     last_seen: datetime = Field(default_factory=datetime.utcnow)
 
@@ -193,6 +198,11 @@ class RoomState(BaseModel):
     events: list[LocalEvent]
     settings: RoomSettings = Field(default_factory=RoomSettings)
     route_assignments: dict[str, dict[int, int]] = {}
+
+
+class CreateRoomRequest(BaseModel):
+    mode: str = "soullink"
+    max_players: int = 0
 
 
 class CreateRoomResponse(BaseModel):
