@@ -29,12 +29,13 @@ function EffBadge({ eff, damageClass, invert }) {
   if (damageClass === 'status') return null;
   if (!eff || !eff.label) return null;
   const isSE = eff.multiplier > 1;
+  const isNeutral = eff.multiplier === 1;
   const isImmune = eff.multiplier === 0;
   let cls;
   if (invert) {
-    cls = isSE ? 'mc-eff-nve' : isImmune ? 'mc-eff-se' : 'mc-eff-se';
+    cls = isSE ? 'mc-eff-nve mc-eff-opponent-se' : isImmune ? 'mc-eff-se' : isNeutral ? 'mc-eff-neutral' : 'mc-eff-se';
   } else {
-    cls = isSE ? 'mc-eff-se' : isImmune ? 'mc-eff-immune' : 'mc-eff-nve';
+    cls = isSE ? 'mc-eff-se mc-eff-party-se' : isImmune ? 'mc-eff-immune' : isNeutral ? 'mc-eff-neutral' : 'mc-eff-nve';
   }
   return <span className={`mc-eff ${cls}`}>{eff.label}</span>;
 }

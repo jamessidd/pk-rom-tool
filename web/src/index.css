@@ -880,6 +880,21 @@ button:active { transform:scale(0.97); }
 .mc-eff-se { background:rgba(52,211,153,0.25); color:#34d399; }
 .mc-eff-nve { background:rgba(239,68,68,0.18); color:#f87171; }
 .mc-eff-immune { background:rgba(255,255,255,0.08); color:var(--text-muted); }
+.mc-eff-neutral { background:rgba(255,255,255,0.08); color:var(--text-muted); }
+
+/* Party SE: green sparkle/glow pulse */
+@keyframes mcPartySeSparkle {
+  0%, 100% { box-shadow: 0 0 0px rgba(52,211,153,0); filter: brightness(1); }
+  50%       { box-shadow: 0 0 8px rgba(52,211,153,0.7); filter: brightness(1.35); }
+}
+.mc-eff-party-se { animation: mcPartySeSparkle 1.5s ease-in-out infinite; }
+
+/* Opponent SE: urgent red flash */
+@keyframes mcOpponentSeFlash {
+  0%, 100% { box-shadow: 0 0 0px rgba(239,68,68,0); filter: brightness(1); }
+  40%, 60% { box-shadow: 0 0 10px rgba(239,68,68,0.8); filter: brightness(1.4); }
+}
+.mc-eff-opponent-se { animation: mcOpponentSeFlash 1s ease-in-out infinite; }
 
 /* Compact variant for party cards during battle (two-row, no description) */
 .mc-compact {
