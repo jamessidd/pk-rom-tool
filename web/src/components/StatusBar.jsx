@@ -1,4 +1,4 @@
-export default function StatusBar({ localConnected, syncConnected, mode, roomCode, gameInfo, onOpenSettings, onOpenRouteManager }) {
+export default function StatusBar({ localConnected, syncConnected, mode, roomCode, gameInfo, onOpenSettings, onOpenRouteManager, players, localPlayerId }) {
   const gameName = gameInfo?.game?.name;
   const gameVersion = gameInfo?.game?.version;
   const gen = gameInfo?.game?.generation;
@@ -7,8 +7,9 @@ export default function StatusBar({ localConnected, syncConnected, mode, roomCod
   return (
     <header className="status-bar">
       <div className="brand">
-        <h1>Soul Link</h1>
-        <span className="brand-sub">PK ROM Tool</span>
+        <img className="brand-logo" src="https://play.pokemonshowdown.com/sprites/itemicons/link-cable.png" alt="" />
+        <h1>Link Cable</h1>
+        <span className="brand-sub">Pokemon ROM Companion</span>
         {hasGame && (
           <span className="brand-game">
             {gameName}
@@ -18,6 +19,21 @@ export default function StatusBar({ localConnected, syncConnected, mode, roomCod
         )}
       </div>
       <div className="toolbar">
+        {mode === 'room' && players && players.length > 0 && (
+          <div className="player-indicators">
+            {players.map(p => {
+              const isLocal = p.player_id === localPlayerId;
+              const staleMs = p.last_seen ? Date.now() - new Date(p.last_seen).getTime() : Infinity;
+              const online = staleMs < 30000;
+              return (
+                <span key={p.player_id} className={`pi-chip ${online ? 'pi-online' : 'pi-offline'}`} title={`${p.player_name}${isLocal ? ' (you)' : ''} — ${online ? 'online' : 'offline'}`}>
+                  <span className={`pi-dot ${online ? '' : 'pi-dot-off'}`} />
+                  {p.player_name || p.player_id.slice(0, 6)}
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className="indicators">
           <Pill label="Tracker" ok={localConnected} />
           <Pill label="Sync" ok={syncConnected} />

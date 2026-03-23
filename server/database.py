@@ -21,7 +21,8 @@ from models import (
 
 logger = logging.getLogger("pkrom.sync.db")
 
-DB_PATH = Path(__file__).resolve().parent / "pkrom_soullink.db"
+import os as _os
+DB_PATH = Path(_os.environ.get("DB_PATH", str(Path(__file__).resolve().parent / "pkrom_soullink.db")))
 
 _db: aiosqlite.Connection | None = None
 

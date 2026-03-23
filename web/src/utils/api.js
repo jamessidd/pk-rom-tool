@@ -1,5 +1,5 @@
-const DEFAULT_LOCAL = 'http://localhost:8080';
-const DEFAULT_SYNC  = 'http://localhost:8000';
+const DEFAULT_LOCAL = import.meta.env.VITE_LOCAL_URL || 'http://localhost:8080';
+const DEFAULT_SYNC  = import.meta.env.VITE_SYNC_URL || 'http://localhost:8000';
 
 function stored(key, fallback) {
   try { return localStorage.getItem(key) || fallback; } catch { return fallback; }

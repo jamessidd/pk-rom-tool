@@ -5,6 +5,7 @@ import PartyGrid from './components/PartyGrid';
 import SoulLinkTimeline from './components/SoulLinkTimeline';
 import RouteLinkList, { SoloRouteLinkList } from './components/RouteLinkList';
 import EventToasts from './components/EventToasts';
+import DebugTicker from './components/DebugTicker';
 import BattleCard from './components/BattleCard';
 import RouteManager from './components/RouteManager';
 import TrainerSpritePicker, { getTrainerSpriteUrl } from './components/TrainerSpritePicker';
@@ -276,17 +277,48 @@ export default function App() {
         mode={room.mode}
         roomCode={room.roomCode}
         gameInfo={status}
+        players={roomPlayers}
+        localPlayerId={localPlayerId}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenRouteManager={() => { setFocusRoute(null); setRouteManagerOpen(true); }}
       />
 
-      <main className="main-area">
-        {!localOk && !isMockMode && (
-          <div className="empty-state">
-            <h2>Waiting for Local Tracker</h2>
-            <p>Start BizHawk with the pk-rom-tool script, then refresh.</p>
+      {!localOk && !isMockMode && (
+        <div className="landing">
+          <div className="landing-hero">
+            <img className="landing-mascot" src="https://play.pokemonshowdown.com/sprites/itemicons/link-cable.png" alt="Link Cable" />
+            <h1 className="landing-title">Link Cable</h1>
+            <p className="landing-subtitle">A Pokemon ROM Companion</p>
+            <div className="landing-features">
+              <div className="landing-feat">
+                <span className="landing-feat-icon">⚡</span>
+                <div>
+                  <strong>Live Tracking</strong>
+                  <span>Real-time party, stats, and battle data from your emulator</span>
+                </div>
+              </div>
+              <div className="landing-feat">
+                <span className="landing-feat-icon">🔗</span>
+                <div>
+                  <strong>Soul Link Sync</strong>
+                  <span>Link encounters across players with shared tracking</span>
+                </div>
+              </div>
+              <div className="landing-feat">
+                <span className="landing-feat-icon">⚔</span>
+                <div>
+                  <strong>Battle Awareness</strong>
+                  <span>See your partner's battles and get type matchup info</span>
+                </div>
+              </div>
+            </div>
+            <button className="landing-cta" onClick={() => setSettingsOpen(true)}>Get Started</button>
+            <p className="landing-hint">Start BizHawk with the Link Cable Lua script, then connect above.</p>
           </div>
-        )}
+        </div>
+      )}
+
+      <main className="main-area" style={!localOk && !isMockMode ? { display: 'none' } : undefined}>
 
         {localOk && isSolo && (() => {
           const timeline = getTimeline(gameName);
@@ -462,17 +494,18 @@ export default function App() {
 
       <EventToasts events={[...soloEvents, ...roomEvents, ...battleEvents]} />
 
+      <DebugTicker
+        localConnected={localOk}
+        syncConnected={room.syncConnected}
+        mode={room.mode}
+        roomCode={room.roomCode}
+      />
+
       <footer className="app-footer">
         <div className="footer-brand">
-          <span className="footer-brand-item">Made by <strong>Foins</strong></span>
-          <span className="footer-dot">&bull;</span>
-          <span className="footer-brand-item">Maintained by <strong>Foins</strong></span>
+          <span className="footer-brand-item"><strong>Link Cable</strong> &mdash; Pokemon ROM Companion</span>
         </div>
         <div className="footer-legal">
-          All content &amp; design &copy; Pok&eacute;mon Nuzlocke Tracker, 2021-2026.
-          {' '}<span className="footer-legal-muted">Privacy Policy</span>.
-          {' '}<span className="footer-legal-muted">Credits</span>.
-          <br />
           Pok&eacute;mon images &amp; names &copy; 1995-2024 Nintendo/Creatures Inc./GAME FREAK inc. TM
         </div>
       </footer>

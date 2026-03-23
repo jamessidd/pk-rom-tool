@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -52,15 +53,22 @@ async def lifespan(app: FastAPI):
     logger.info("PK ROM Tool sync server shutting down")
 
 
-app = FastAPI(title="PK ROM Tool Soul Link Sync", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Link Cable Sync Server", version="0.2.0", lifespan=lifespan)
+
+_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
 def get_room(code: str) -> Room:
