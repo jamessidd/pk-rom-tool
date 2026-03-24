@@ -91,11 +91,16 @@ async def initialize():
     )
     await _db.commit()
 
-    try:
-        await _db.execute("ALTER TABLE rooms ADD COLUMN route_assignments_json TEXT DEFAULT '{}'")
-        await _db.commit()
-    except Exception:
-        pass
+    for migration in [
+        "ALTER TABLE rooms ADD COLUMN route_assignments_json TEXT DEFAULT '{}'",
+        "ALTER TABLE players ADD COLUMN team TEXT DEFAULT ''",
+        "ALTER TABLE snapshots ADD COLUMN enemy_party_json TEXT DEFAULT '[]'",
+    ]:
+        try:
+            await _db.execute(migration)
+            await _db.commit()
+        except Exception:
+            pass
 
     logger.info("Database initialized at %s", DB_PATH)
 
@@ -190,6 +195,7 @@ async def load_all_rooms() -> dict[str, Room]:
                 profile=profile,
                 joined_at=datetime.fromisoformat(row["joined_at"]),
                 last_seen=datetime.fromisoformat(row["last_seen"]),
+                team=row["team"] if "team" in row.keys() else "",
             )
 
     async with _db.execute("SELECT * FROM catches ORDER BY timestamp") as cursor:
@@ -223,10 +229,13 @@ async def load_all_rooms() -> dict[str, Room]:
             if not room:
                 continue
             current_party = [_sync_pokemon_from_dict(item) for item in json.loads(row["current_party_json"] or "[]")]
+            enemy_raw = row["enemy_party_json"] if "enemy_party_json" in row.keys() else "[]"
+            enemy_party = [_sync_pokemon_from_dict(item) for item in json.loads(enemy_raw or "[]")]
             room.player_snapshots[row["player_id"]] = PlayerSnapshot(
                 player_id=row["player_id"],
                 player_name=row["player_name"],
                 current_party=current_party,
+                enemy_party=enemy_party,
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
 
@@ -269,8 +278,8 @@ async def save_player(room_code: str, player: PlayerPresence):
     await _db.execute(
         """
         INSERT OR REPLACE INTO players
-        (room_code, player_id, player_name, profile_json, joined_at, last_seen)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (room_code, player_id, player_name, profile_json, joined_at, last_seen, team)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
             room_code,
@@ -279,6 +288,7 @@ async def save_player(room_code: str, player: PlayerPresence):
             json.dumps(player.profile.model_dump()),
             player.joined_at.isoformat(),
             player.last_seen.isoformat(),
+            player.team,
         ),
     )
     await _db.commit()
@@ -290,14 +300,15 @@ async def save_snapshot(room_code: str, snapshot: PlayerSnapshot):
     await _db.execute(
         """
         INSERT OR REPLACE INTO snapshots
-        (room_code, player_id, player_name, current_party_json, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        (room_code, player_id, player_name, current_party_json, enemy_party_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
             room_code,
             snapshot.player_id,
             snapshot.player_name,
             json.dumps([p.model_dump() for p in snapshot.current_party]),
+            json.dumps([p.model_dump() for p in snapshot.enemy_party]),
             snapshot.updated_at.isoformat(),
         ),
     )

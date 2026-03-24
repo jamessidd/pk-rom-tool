@@ -198,34 +198,9 @@ export default function PartyCard({ mon, routeName, isActiveBattler, inBattle, o
             })}
           </div>
         ) : (
-          <>
-            {(baseStats || ivs || evs) && (
-              <StatFooter baseStats={baseStats} ivs={ivs} evs={evs} />
-            )}
-            <div className="pc-concise-moves">
-              {moveSlots.map((name, i) => {
-                const md = name ? moveData.get(name) : null;
-                const typeName = md?.type ? capitalize(md.type) : null;
-                const typeColor = typeName ? TYPE_COLORS[typeName] : null;
-                return (
-                  <div key={i} className="pc-cmove" style={typeColor ? { borderLeftColor: typeColor, background: `linear-gradient(90deg, ${typeColor}15, transparent 60%)` } : {}}>
-                    {name ? (
-                      <>
-                        <span className="pc-cmove-name">{splitName(name)}</span>
-                        {md && (
-                          <span className="pc-cmove-stats">
-                            <CategoryIcon damageClass={md.damageClass || md.damage_class} />
-                            <span className="pc-cmove-pow">{md.power || '—'}</span>
-                            <span className="pc-cmove-acc">{md.accuracy || '—'}</span>
-                          </span>
-                        )}
-                      </>
-                    ) : <span className="pc-cmove-empty">&mdash;</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </>
+          (baseStats || ivs || evs) && (
+            <StatFooter baseStats={baseStats} ivs={ivs} evs={evs} />
+          )
         )}
       </div>
     </div>
@@ -243,45 +218,22 @@ export function EmptySlot() {
 const BST_MAX = 255;
 const STAT_KEYS = ['hp', 'attack', 'defense', 'specialAttack', 'specialDefense', 'speed'];
 const STAT_LABELS = ['HP', 'ATK', 'DEF', 'SPA', 'SPD', 'SPE'];
-const IV_EV_LABELS = ['HP', 'Atk', 'Def', 'SpA', 'SpD', 'Spe'];
 
 function StatFooter({ baseStats, ivs, evs }) {
   const hasIvEv = ivs || evs;
 
   return (
     <div className="sf">
-      {hasIvEv && (
-        <div className="sf-ivev">
-          <table>
-            <thead>
-              <tr>
-                <th></th>
-                {ivs && <th>IV</th>}
-                {evs && <th>EV</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {IV_EV_LABELS.map((label, i) => {
-                const ivKey = STAT_KEYS[i];
-                const ivVal = ivs?.[ivKey] ?? ivs?.[label.toLowerCase()];
-                const evVal = evs?.[ivKey] ?? evs?.[label.toLowerCase()];
-                return (
-                  <tr key={label}>
-                    <td className="sf-stat-label">{label}</td>
-                    {ivs && <td className={ivVal === 31 ? 'sf-perfect' : ''}>{ivVal ?? '—'}</td>}
-                    {evs && <td className={evVal === 252 ? 'sf-maxed' : ''}>{evVal ?? '—'}</td>}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
       {baseStats && (
-        <div className="sf-bst">
-          <div className="bst-title">Base Stats <span className="bst-total">{baseStats.total}</span></div>
+        <>
+          <div className="bst-title">
+            Base Stats <span className="bst-total">{baseStats.total}</span>
+            {hasIvEv && <span className="bst-ivev-header">{ivs && 'IV'}{ivs && evs && '/'}{evs && 'EV'}</span>}
+          </div>
           {STAT_KEYS.map((key, i) => {
             const val = baseStats[key] ?? 0;
+            const ivVal = ivs?.[key] ?? ivs?.[STAT_LABELS[i].toLowerCase()];
+            const evVal = evs?.[key] ?? evs?.[STAT_LABELS[i].toLowerCase()];
             return (
               <div key={key} className="bst-row">
                 <span className="bst-label">{STAT_LABELS[i]}</span>
@@ -292,10 +244,16 @@ function StatFooter({ baseStats, ivs, evs }) {
                     background: statColor(val),
                   }} />
                 </div>
+                {hasIvEv && (
+                  <span className="bst-ivev">
+                    {ivs && <span className={ivVal === 31 ? 'bst-iv-perfect' : 'bst-iv'}>{ivVal ?? '—'}</span>}
+                    {evs && <span className={evVal === 252 ? 'bst-ev-maxed' : 'bst-ev'}>{evVal ?? '—'}</span>}
+                  </span>
+                )}
               </div>
             );
           })}
-        </div>
+        </>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ export default function SettingsModal({
   localUrl, onLocalUrlChange,
   syncUrl, onSyncUrlChange,
   roomCode, onRoomCodeChange,
-  onCreate, onJoin, onSolo,
+  onCreate, onJoin, onSolo, onSetTeamNames,
   mode, error,
   roomSettings,
   trainerSpriteId, onOpenSpritePicker,
@@ -16,6 +16,8 @@ export default function SettingsModal({
   const [createMode, setCreateMode] = useState('soullink');
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [joinTeam, setJoinTeam] = useState('A');
+  const [teamNameA, setTeamNameA] = useState(roomSettings?.team_names?.A || '');
+  const [teamNameB, setTeamNameB] = useState(roomSettings?.team_names?.B || '');
   const spriteUrl = getTrainerSpriteUrl(trainerSpriteId);
   const isRaceRoom = roomSettings?.mode === 'race';
 
@@ -63,9 +65,22 @@ export default function SettingsModal({
                         <option value={4}>4</option>
                       </select>
                     </label>
+                    <div className="sm-team-names">
+                      <label className="sm-inline-label">
+                        Team A
+                        <input className="sm-input sm-team-input" value={teamNameA} onChange={e => setTeamNameA(e.target.value)} placeholder="Team A" maxLength={24} />
+                      </label>
+                      <label className="sm-inline-label">
+                        Team B
+                        <input className="sm-input sm-team-input" value={teamNameB} onChange={e => setTeamNameB(e.target.value)} placeholder="Team B" maxLength={24} />
+                      </label>
+                    </div>
                   </div>
                 )}
-                <button className="btn-primary" onClick={() => onCreate(createMode, createMode === 'race' ? maxPlayers : 0)}>Create Room</button>
+                <button className="btn-primary" onClick={() => {
+                  const names = createMode === 'race' ? { A: teamNameA || 'Team A', B: teamNameB || 'Team B' } : {};
+                  onCreate(createMode, createMode === 'race' ? maxPlayers : 0, names);
+                }}>Create Room</button>
                 <div className="sm-divider-thin" />
                 <div className="join-row">
                   <input
@@ -86,6 +101,20 @@ export default function SettingsModal({
               <div className="sm-room-info">
                 <span className="sm-room-code">Room: {roomCode}</span>
                 {isRaceRoom && <span className="sm-room-mode">Race Mode</span>}
+                {isRaceRoom && (
+                  <div className="sm-team-names">
+                    <label className="sm-inline-label">
+                      Team A
+                      <input className="sm-input sm-team-input" value={teamNameA} onChange={e => setTeamNameA(e.target.value)} placeholder="Team A" maxLength={24}
+                        onBlur={() => onSetTeamNames?.({ A: teamNameA || 'Team A', B: teamNameB || 'Team B' })} />
+                    </label>
+                    <label className="sm-inline-label">
+                      Team B
+                      <input className="sm-input sm-team-input" value={teamNameB} onChange={e => setTeamNameB(e.target.value)} placeholder="Team B" maxLength={24}
+                        onBlur={() => onSetTeamNames?.({ A: teamNameA || 'Team A', B: teamNameB || 'Team B' })} />
+                    </label>
+                  </div>
+                )}
                 <button onClick={onSolo}>Leave Room</button>
               </div>
             )}

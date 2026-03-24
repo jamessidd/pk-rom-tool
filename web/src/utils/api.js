@@ -47,11 +47,18 @@ export async function fetchLocalEvents(base) {
   return json(`${base}/soullink/events`);
 }
 
-export async function createRoom(syncBase, mode, maxPlayers) {
+export async function createRoom(syncBase, mode, maxPlayers, teamNames) {
   return json(`${syncBase}/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: mode || 'soullink', max_players: maxPlayers || 0 }),
+    body: JSON.stringify({ mode: mode || 'soullink', max_players: maxPlayers || 0, team_names: teamNames || {} }),
+  });
+}
+export async function updateTeamNames(syncBase, code, teamNames) {
+  return json(`${syncBase}/rooms/${code}/team-names`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ team_names: teamNames }),
   });
 }
 export async function joinRoom(syncBase, code, playerId, playerName, profile, team) {
@@ -96,9 +103,21 @@ export async function reassignRoute(syncBase, code, playerId, route, personality
 export function getTrainerSprite() { return stored('pkrom-trainer-sprite', 'red'); }
 export function setTrainerSprite(s) { store('pkrom-trainer-sprite', s); }
 
-export function getSoloAssignments() {
-  try { return JSON.parse(localStorage.getItem('pkrom-solo-assignments') || '{}'); } catch { return {}; }
+export function getSoloAssignments(gameKey) {
+  try {
+    const all = JSON.parse(localStorage.getItem('pkrom-solo-assignments') || '{}');
+    if (!gameKey) return all;
+    return all[gameKey] || {};
+  } catch { return {}; }
 }
-export function setSoloAssignments(assignments) {
-  try { localStorage.setItem('pkrom-solo-assignments', JSON.stringify(assignments)); } catch { /* noop */ }
+export function setSoloAssignments(assignments, gameKey) {
+  try {
+    if (!gameKey) {
+      localStorage.setItem('pkrom-solo-assignments', JSON.stringify(assignments));
+      return;
+    }
+    const all = JSON.parse(localStorage.getItem('pkrom-solo-assignments') || '{}');
+    all[gameKey] = assignments;
+    localStorage.setItem('pkrom-solo-assignments', JSON.stringify(all));
+  } catch { /* noop */ }
 }

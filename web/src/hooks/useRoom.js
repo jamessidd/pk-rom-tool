@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getPlayerId, createRoom as apiCreateRoom, joinRoom as apiJoinRoom,
   fetchRoomState, sendReconcile, overrideDeath, reassignRoute as apiReassign,
+  updateTeamNames as apiUpdateTeamNames,
 } from '../utils/api';
 
 function buildProfile(status) {
@@ -129,12 +130,13 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     } catch { /* will retry next cycle */ }
   }, [syncUrl, localSoul, localParty, enemyParty, playerId, playerName, refreshRoom]);
 
-  const create = useCallback(async (roomMode, maxPlayers) => {
+  const create = useCallback(async (roomMode, maxPlayers, teamNames) => {
     if (!localStatus?.game?.initialized) { setError('Local game not detected.'); return; }
     if (!playerName) { setError('Enter a display name.'); return; }
     setError('');
+    sentIds.current.clear();
     try {
-      const { code } = await apiCreateRoom(syncUrl, roomMode, maxPlayers);
+      const { code } = await apiCreateRoom(syncUrl, roomMode, maxPlayers, teamNames);
       setRoomCode(code);
       const profile = buildProfile(localStatus);
       const team = roomMode === 'race' ? 'A' : '';
@@ -152,6 +154,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     if (!localStatus?.game?.initialized) { setError('Local game not detected.'); return; }
     if (!playerName) { setError('Enter a display name.'); return; }
     setError('');
+    sentIds.current.clear();
     const upper = code.toUpperCase();
     setRoomCode(upper);
     try {
@@ -173,6 +176,8 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
   const goSolo = useCallback(() => {
     setMode('solo');
     setRoomState(null);
+    setRoomCode('');
+    sentIds.current.clear();
     if (wsRef.current) wsRef.current.close();
     if (syncTimer.current) clearInterval(syncTimer.current);
   }, []);
@@ -207,6 +212,16 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     }
   }, [syncUrl, roomCode, playerId, refreshRoom]);
 
+  const setTeamNames = useCallback(async (names) => {
+    if (!roomCode) return;
+    try {
+      await apiUpdateTeamNames(syncUrl, roomCode, names);
+      await refreshRoom(roomCode);
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [syncUrl, roomCode, refreshRoom]);
+
   useEffect(() => {
     return () => {
       if (wsRef.current) wsRef.current.close();
@@ -216,6 +231,6 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
 
   return {
     roomCode, setRoomCode, roomState, syncConnected,
-    error, mode, create, join, goSolo, undoDeath, markDead, reassign,
+    error, mode, create, join, goSolo, undoDeath, markDead, reassign, setTeamNames,
   };
 }

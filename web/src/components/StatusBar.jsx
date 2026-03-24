@@ -9,7 +9,7 @@ export default function StatusBar({ localConnected, syncConnected, mode, roomCod
       <div className="brand">
         <img className="brand-logo" src="/link-cable.png" alt="" />
         <h1>Link Cable</h1>
-        <span className="brand-sub">Pokemon ROM Companion</span>
+        <span className="brand-sub">Pokemon ROM Companion <span className="brand-legal">Pok&eacute;mon &copy; Nintendo/Creatures/GAME FREAK</span></span>
         {hasGame && (
           <span className="brand-game">
             {gameName}

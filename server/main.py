@@ -286,6 +286,8 @@ async def create_room(request: CreateRoomRequest = None):
             settings.mode = request.mode
         if request.max_players > 0:
             settings.max_players = request.max_players
+        if request.team_names:
+            settings.team_names = request.team_names
     room = Room(code=code, settings=settings)
     rooms[code] = room
     await db.save_room(room)
@@ -513,6 +515,16 @@ async def reassign_route(code: str, request: ReassignRequest):
         "route_assignments": room.route_assignments,
     })
     return {"message": "Route reassigned", "route": request.route, "personality": request.personality}
+
+
+@app.post("/rooms/{code}/team-names")
+async def update_team_names(code: str, request: dict):
+    room = get_room(code)
+    names = request.get("team_names", {})
+    room.settings.team_names = {k: str(v)[:32] for k, v in names.items()}
+    await db.save_room(room)
+    await broadcast_to_room(code, {"type": "settings_update"})
+    return {"message": "Team names updated"}
 
 
 @app.get("/rooms/{code}/state", response_model=RoomState)

@@ -68,7 +68,7 @@ function BattleOpponent({ mon, isActive, playerLeadTypes }) {
   const hp = mon.currentHP ?? mon.current_hp ?? 0;
   const maxHp = mon.maxHP ?? mon.max_hp ?? 0;
   const types = mon.types || [];
-  const rawMoves = mon.moveNames || [];
+  const rawMoves = mon.moveNames || mon.move_names || [];
   const hpRatio = maxHp > 0 ? hp / maxHp : 0;
   const alive = hp > 0;
   const nature = mon.nature;

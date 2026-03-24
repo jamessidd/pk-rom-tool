@@ -1,7 +1,34 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchLocalStatus, fetchLocalSoulLink, fetchLocalParty, fetchLocalTrainer, fetchLocalEnemy } from '../utils/api';
+import { isMockEnabled, generateMockLocalData, generateMockEnemyParty } from '../utils/mockData';
 
-export default function useLocalTracker(localUrl) {
+function useMockTracker() {
+  const [mockData] = useState(() => generateMockLocalData());
+  const [enemyParty, setEnemyParty] = useState([]);
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'b' || e.key === 'B') {
+        setEnemyParty(prev => prev.length > 0 ? [] : generateMockEnemyParty());
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  return {
+    connected: true,
+    status: mockData.status,
+    soulLink: mockData.soulLink,
+    party: mockData.party,
+    trainerInfo: mockData.trainerInfo,
+    enemyParty,
+    refresh: () => {},
+  };
+}
+
+function useRealTracker(localUrl) {
   const [connected, setConnected] = useState(false);
   const [status, setStatus]       = useState(null);
   const [soulLink, setSoulLink]   = useState(null);
@@ -77,4 +104,11 @@ export default function useLocalTracker(localUrl) {
   }, [poll, pollDetails, pollEnemy]);
 
   return { connected, status, soulLink, party, trainerInfo, enemyParty, refresh: poll };
+}
+
+export default function useLocalTracker(localUrl) {
+  const mock = isMockEnabled();
+  const mockResult = useMockTracker();
+  const realResult = useRealTracker(mock ? '' : localUrl);
+  return mock ? mockResult : realResult;
 }

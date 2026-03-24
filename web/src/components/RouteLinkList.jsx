@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import useSprite from '../hooks/useSprite';
 import { getProgression, sortRoutesWithDividers } from '../data/routeProgression';
 
 const STATUS_CONFIG = {
-  team:    { label: 'Team',    color: '#34d399', dot: '#34d399' },
-  box:     { label: 'Box',     color: '#94a3b8', dot: '#64748b' },
-  fallen:  { label: 'Fallen',  color: '#fca5a5', dot: '#ef4444' },
-  daycare: { label: 'Daycare', color: '#c084fc', dot: '#a855f7' },
+  team:   { label: 'Team',   color: '#34d399', dot: '#34d399' },
+  box:    { label: 'Box',    color: '#60a5fa', dot: '#3b82f6' },
+  fallen: { label: 'Fallen', color: '#fca5a5', dot: '#ef4444' },
 };
 
 function getMonStatus(mon) {
@@ -14,17 +13,8 @@ function getMonStatus(mon) {
   const alive = mon.alive !== undefined ? mon.alive : true;
   if (!alive) return 'fallen';
   const inParty = mon.in_party ?? mon.inParty ?? true;
-  const inDaycare = mon.in_daycare ?? mon.inDaycare ?? false;
-  if (inDaycare) return 'daycare';
   if (inParty) return 'team';
   return 'box';
-}
-
-function worstStatus(statuses) {
-  if (statuses.includes('fallen')) return 'fallen';
-  if (statuses.includes('box')) return 'box';
-  if (statuses.includes('daycare')) return 'daycare';
-  return 'team';
 }
 
 function SpriteCell({ species }) {
@@ -35,8 +25,29 @@ function SpriteCell({ species }) {
     : <div className="et-mini-sprite-fb">?</div>;
 }
 
+function StatusDot({ status }) {
+  if (!status) return null;
+  const cfg = STATUS_CONFIG[status];
+  if (!cfg) return null;
+  return (
+    <span className="et-status-inline" style={{ color: cfg.color }}>
+      <span className="et-dot" style={{ background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  );
+}
+
 export default function RouteLinkList({ links, players }) {
   const [search, setSearch] = useState('');
+  const bodyRef = useRef(null);
+
+  const count = links?.length || 0;
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
+  }, [count]);
+
   if (!links || links.length === 0) return null;
 
   const pids = (players || []).map(p => p.player_id || p);
@@ -80,53 +91,46 @@ export default function RouteLinkList({ links, players }) {
         <div className="et-head-row">
           <div className="et-col et-col-origin et-hdr">Origin</div>
           {(players || []).map(p => (
-            <div key={p.player_id || p} className="et-col et-col-sprite et-hdr">
+            <div key={p.player_id || p} className="et-col et-col-player et-hdr">
               {p.player_name || p}
             </div>
           ))}
-          <div className="et-col et-col-nicks et-hdr">Nicknames</div>
-          <div className="et-col et-col-loc et-hdr">Status</div>
         </div>
 
-        <div className="et-body">
+        <div className="et-body" ref={bodyRef}>
           {filtered.map((link, idx) => {
-            const statuses = pids.map(pid => getMonStatus(link.pokemon?.[pid])).filter(Boolean);
-            const rowStatus = statuses.length > 0 ? worstStatus(statuses) : null;
-            const isDead = rowStatus === 'fallen';
-            const statusCfg = rowStatus ? STATUS_CONFIG[rowStatus] : null;
-
-            const nicknames = pids
-              .map(pid => link.pokemon?.[pid]?.nickname || '')
-              .filter(Boolean)
-              .join(' & ');
+            const anyDead = pids.some(pid => getMonStatus(link.pokemon?.[pid]) === 'fallen');
 
             return (
-              <div key={link.route} className={`et-row ${isDead ? 'et-row-dead' : ''} ${idx % 2 === 1 ? 'et-row-alt' : ''}`}>
+              <div key={link.route} className={`et-row ${anyDead ? 'et-row-dead' : ''} ${idx % 2 === 1 ? 'et-row-alt' : ''}`}>
                 <div className="et-col et-col-origin">{link.routeName || `Loc ${link.route}`}</div>
                 {pids.map(pid => {
                   const mon = link.pokemon?.[pid];
                   const species = mon?.species_name || mon?.species || '';
+                  const nickname = mon?.nickname || '';
+                  const status = getMonStatus(mon);
                   return (
-                    <div key={pid} className="et-col et-col-sprite">
+                    <div key={pid} className="et-col et-col-player">
                       <SpriteCell species={species} />
+                      <div className="et-player-info">
+                        <span className="et-player-nick">{nickname || <span className="et-empty">--</span>}</span>
+                        <StatusDot status={status} />
+                      </div>
                     </div>
                   );
                 })}
-                <div className="et-col et-col-nicks">{nicknames || <span className="et-empty">--</span>}</div>
-                <div className="et-col et-col-loc">
-                  {statusCfg && (
-                    <span className="et-status-pill" style={{ color: statusCfg.color }}>
-                      <span className="et-dot" style={{ background: statusCfg.dot }} />
-                      {statusCfg.label}
-                    </span>
-                  )}
-                </div>
               </div>
             );
           })}
           {filtered.length === 0 && (
             <div className="et-row et-row-empty">No matches found</div>
           )}
+          <div className="et-row et-row-incoming">
+            <div className="et-col et-col-origin et-incoming-label">···</div>
+            {pids.map(pid => (
+              <div key={pid} className="et-col et-col-player et-incoming-slot" />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -146,9 +150,7 @@ export function SoloRouteLinkList({ routes, gameName }) {
       <div className="et glass-card">
         <div className="et-head-row">
           <div className="et-col et-col-origin et-hdr">Route</div>
-          <div className="et-col et-col-sprite et-hdr">Pokemon</div>
-          <div className="et-col et-col-nicks et-hdr">Nickname</div>
-          <div className="et-col et-col-loc et-hdr">Status</div>
+          <div className="et-col et-col-player et-hdr">Pokemon</div>
         </div>
         <div className="et-body">
           {items.map((item, i) => {
@@ -164,23 +166,17 @@ export function SoloRouteLinkList({ routes, gameName }) {
             const species = mon?.species_name || mon?.species || '';
             const nickname = mon?.nickname || '';
             const status = getMonStatus(mon);
-            const statusCfg = status ? STATUS_CONFIG[status] : null;
             const isDead = status === 'fallen';
             const alt = rowIdx++ % 2 === 1;
             return (
               <div key={route.locationId} className={`et-row ${isDead ? 'et-row-dead' : ''} ${alt ? 'et-row-alt' : ''}`}>
                 <div className="et-col et-col-origin">{route.locationName || `Loc ${route.locationId}`}</div>
-                <div className="et-col et-col-sprite">
+                <div className="et-col et-col-player">
                   <SpriteCell species={species} />
-                </div>
-                <div className="et-col et-col-nicks">{nickname || <span className="et-empty">--</span>}</div>
-                <div className="et-col et-col-loc">
-                  {statusCfg && (
-                    <span className="et-status-pill" style={{ color: statusCfg.color }}>
-                      <span className="et-dot" style={{ background: statusCfg.dot }} />
-                      {statusCfg.label}
-                    </span>
-                  )}
+                  <div className="et-player-info">
+                    <span className="et-player-nick">{nickname || <span className="et-empty">--</span>}</span>
+                    <StatusDot status={status} />
+                  </div>
                 </div>
               </div>
             );

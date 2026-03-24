@@ -64,6 +64,7 @@ class RoomSettings(BaseModel):
     gift_clause: str = "separate"
     mode: str = "soullink"
     max_players: int = 0
+    team_names: dict[str, str] = {}
 
 
 class SyncPokemon(BaseModel):
@@ -203,6 +204,7 @@ class RoomState(BaseModel):
 class CreateRoomRequest(BaseModel):
     mode: str = "soullink"
     max_players: int = 0
+    team_names: dict[str, str] = {}
 
 
 class CreateRoomResponse(BaseModel):
