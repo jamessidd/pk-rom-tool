@@ -343,6 +343,7 @@ export default function App() {
         {localOk && isSolo && (() => {
           const timeline = getTimeline(gameName);
           const soloLeadOpponent = enemyParty?.[0]?.types || [];
+          const soloLeadPlayerTypes = trainerParties[0]?.party?.[0]?.types || [];
           return (
             <div className={`layout-main${inBattle ? ' lm-battle' : ''}`}>
               <section className="col-party">
@@ -351,7 +352,7 @@ export default function App() {
               {inBattle && (
                 <section className="col-battle">
                   <h2 className="section-title">Battle</h2>
-                  <BattleCard enemyParty={enemyParty} />
+                  <BattleCard enemyParty={enemyParty} playerLeadTypes={soloLeadPlayerTypes} />
                 </section>
               )}
               <section className="col-encounters">

@@ -85,7 +85,7 @@ export function getEffectiveness(moveType, defenderTypes) {
     mult *= lookupMultiplier(atk, dt.toLowerCase());
   }
 
-  if (mult === 1) return { multiplier: 1, label: null };
+  if (mult === 1) return { multiplier: 1, label: 'Effective' };
   if (mult === 0) return { multiplier: 0, label: 'Immune' };
   if (mult >= 4)  return { multiplier: mult, label: 'Super Effective (4x)' };
   if (mult >= 2)  return { multiplier: mult, label: 'Super Effective' };

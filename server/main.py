@@ -57,12 +57,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Link Cable Sync Server", version="0.2.0", lifespan=lifespan)
 
-_cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _cors_origins],
-    allow_credentials=False,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -539,6 +539,22 @@ async def get_room_state(code: str):
         settings=room.settings,
         route_assignments=room.route_assignments,
     )
+
+
+@app.get("/rooms")
+async def list_rooms():
+    return {
+        "rooms": [
+            {
+                "code": room.code,
+                "required_profile": room.required_profile.model_dump() if room.required_profile else None,
+                "players": [player.model_dump(mode="json") for player in room.players.values()],
+                "created_at": room.created_at.isoformat(),
+                "catches_count": len(room.catches),
+            }
+            for room in rooms.values()
+        ]
+    }
 
 
 @app.websocket("/rooms/{code}/ws")
