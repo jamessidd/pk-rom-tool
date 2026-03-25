@@ -156,7 +156,7 @@ function HttpServer:handleRequest(client, requestLine)
             apiHandlers.handlePartyRequest(client, self.memoryReader)
         elseif path == "/enemy" then
             apiHandlers.handleEnemyPartyRequest(client, self.memoryReader)
-        elseif path == "/player" then
+        elseif path == "/player" or path == "/trainer" then
             apiHandlers.handlePlayerRequest(client, self.memoryReader)
         elseif path == "/bag" then
             apiHandlers.handleBagRequest(client, self.memoryReader)
