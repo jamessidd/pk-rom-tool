@@ -15,14 +15,14 @@ end
 
 function Gen3PlayerReader:updateTrainerInfo()
   if not MemoryReader.isInitialized or not MemoryReader.currentGame then
-      console.log("MemoryReader is not initialized or no game detected.")
+      console:log("MemoryReader is not initialized or no game detected.")
       return false
   end
 
   local gameData = MemoryReader.currentGame
 
   if not gameData or not gameData.trainerPointers then
-      console.log("No trainer pointer data available for this game.")
+      console:log("No trainer pointer data available for this game.")
       return false
   end
 
@@ -120,7 +120,7 @@ function Gen3PlayerReader:readBag()
     self:updateTrainerInfo()
 
     if not self.trainerInfo then
-        console.log("Unable to read trainer info. Cannot read bag.")
+        console:log("Unable to read trainer info. Cannot read bag.")
         return false
     end
 
@@ -248,7 +248,7 @@ function Gen3PlayerReader:setMoney(amount)
     self:updateTrainerInfo()
 
     if not self.trainerInfo then
-        console.log("Unable to read trainer info. Cannot set money.")
+        console:log("Unable to read trainer info. Cannot set money.")
         return false
     end
 
@@ -270,10 +270,10 @@ function Gen3PlayerReader:setMoney(amount)
     end
 
     -- Write the encrypted money back to memory
-    console.log("Writing encrypted money to address: " .. string.format("0x%X", saveBlock1Addr + trainerOffsets.money))
+    console:log("Writing encrypted money to address: " .. string.format("0x%X", saveBlock1Addr + trainerOffsets.money))
     gameUtils.write32(saveBlock1Addr + trainerOffsets.money, money, domain)
 
-    console.log("Set money to " .. amount .. " (encrypted: " .. string.format("0x%X", money) .. ")")
+    console:log("Set money to " .. amount .. " (encrypted: " .. string.format("0x%X", money) .. ")")
 
     -- Update internal state
     self.trainerInfo.money = amount
@@ -286,7 +286,7 @@ function Gen3PlayerReader:addItemPocket(id, quantity, slotOverride)
     self:readBag()
 
     if not self.trainerInfo then
-        console.log("Unable to read trainer info. Cannot read bag.")
+        console:log("Unable to read trainer info. Cannot read bag.")
         return false
     end
 
@@ -300,34 +300,34 @@ function Gen3PlayerReader:addItemPocket(id, quantity, slotOverride)
     local slotAddr = self:findFreeSlot(saveBlock1Addr + trainerOffsets.itemsPocket, 30)
     if slotOverride then
         if slotOverride < 1 or slotOverride > 30 then
-            console.log("Invalid slot override. Must be between 1 and 30.")
+            console:log("Invalid slot override. Must be between 1 and 30.")
             return false
         end
-        console.log("Using slot override: " .. slotOverride)
+        console:log("Using slot override: " .. slotOverride)
 
       
         slotAddr = saveBlock1Addr + trainerOffsets.itemsPocket + (slotOverride - 1) * 4
 
         if self:getItemAt(slotAddr).id ~= 0 then
-            console.log("Warning: There is already an item in slot " .. slotOverride)
+            console:log("Warning: There is already an item in slot " .. slotOverride)
             return false
         end
     end
 
     if not slotAddr then
-        console.log("No free slot available in Items Pocket.")
+        console:log("No free slot available in Items Pocket.")
         return false
     end
 
     local quantityKey = self.trainerInfo.encryptionKey & 0xFFFF
     local encryptedQuantity = quantity ~ quantityKey
 
-    console.log("Writing item ID " .. id .. " with encrypted quantity " .. string.format("0x%X", encryptedQuantity) .. " to address: " .. string.format("0x%X", slotAddr))
+    console:log("Writing item ID " .. id .. " with encrypted quantity " .. string.format("0x%X", encryptedQuantity) .. " to address: " .. string.format("0x%X", slotAddr))
 
     gameUtils.write16(slotAddr, id, domain)
     gameUtils.write16(slotAddr + 2, encryptedQuantity, domain)
 
-    console.log("Set item ID " .. id .. " with quantity " .. quantity)
+    console:log("Set item ID " .. id .. " with quantity " .. quantity)
 end
 
 -- MARK: - UTILITY

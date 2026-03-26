@@ -8,12 +8,12 @@ local charmaps = require("data.charmaps")
 -- Debug Pokemon party information in detail
 function debugTools.debugParty()
     if not MemoryReader.isInitialized then
-        console.log("Memory Reader not initialized!")
+        console:log("Memory Reader not initialized!")
         return
     end
 
     if not MemoryReader.partyReader then
-        console.log("Party reader not available!")
+        console:log("Party reader not available!")
         return
     end
 
@@ -21,38 +21,38 @@ function debugTools.debugParty()
     local gameCode = gameUtils.gameCodeToString(MemoryReader.currentGame.gameInfo.gameCode)
     local partyAddr = MemoryReader.partyReader:readParty({playerStats = playerStatsAddr}, gameCode)
 
-    console.log("=== DETAILED PARTY DEBUG ===")
-    console.log("Game Code: " .. gameCode)
-    console.log("Player Stats Address: 0x" .. string.format("%08X", playerStatsAddr))
-    console.log("")
+    console:log("=== DETAILED PARTY DEBUG ===")
+    console:log("Game Code: " .. gameCode)
+    console:log("Player Stats Address: 0x" .. string.format("%08X", playerStatsAddr))
+    console:log("")
     
     for i = 1, 6 do
         local pokemon = partyAddr[i]
         if pokemon and pokemon.pokemonID > 0 then
-            console.log("Slot " .. i .. " - Raw Data:")
-            console.log("  Pokemon ID: " .. pokemon.pokemonID)
-            console.log("  Personality: " .. pokemon.personality)
-            console.log("  OT ID: " .. pokemon.otid)
-            console.log("  Level: " .. pokemon.level)
-            console.log("  Ability Slot: " .. pokemon.ability)
-            console.log("  Ability ID: " .. pokemon.abilityID)
-            console.log("  Type IDs: " .. pokemon.type1 .. "/" .. pokemon.type2)
-            console.log("  Nature ID: " .. pokemon.nature)
-            console.log("  IVs (raw): " .. pokemon.ivs)
-            console.log("  Hidden Power ID: " .. pokemon.hiddenPower)
-            console.log("")
+            console:log("Slot " .. i .. " - Raw Data:")
+            console:log("  Pokemon ID: " .. pokemon.pokemonID)
+            console:log("  Personality: " .. pokemon.personality)
+            console:log("  OT ID: " .. pokemon.otid)
+            console:log("  Level: " .. pokemon.level)
+            console:log("  Ability Slot: " .. pokemon.ability)
+            console:log("  Ability ID: " .. pokemon.abilityID)
+            console:log("  Type IDs: " .. pokemon.type1 .. "/" .. pokemon.type2)
+            console:log("  Nature ID: " .. pokemon.nature)
+            console:log("  IVs (raw): " .. pokemon.ivs)
+            console:log("  Hidden Power ID: " .. pokemon.hiddenPower)
+            console:log("")
         end
     end
     
-    console.log("=== END DETAILED DEBUG ===")
+    console:log("=== END DETAILED DEBUG ===")
 end
 
 -- Simple function to dump raw ROM data at an address
 function debugTools.dumpROMData(address, length)
-    console.log("=== ROM DUMP ===")
-    console.log("Address: 0x" .. string.format("%08X", address))
-    console.log("Length: " .. length .. " bytes")
-    console.log("")
+    console:log("=== ROM DUMP ===")
+    console:log("Address: 0x" .. string.format("%08X", address))
+    console:log("Length: " .. length .. " bytes")
+    console:log("")
     
     for i = 0, length - 1 do
         local byte = gameUtils.read8(address + i, "ROM")
@@ -67,23 +67,23 @@ function debugTools.dumpROMData(address, length)
         end
         
         if i % 16 == 0 then
-            console.log(string.format("%08X: ", address + i))
+            console:log(string.format("%08X: ", address + i))
         end
         
-        console.log(string.format("%02X(%s) ", byte, char))
+        console:log(string.format("%02X(%s) ", byte, char))
         
         if i % 16 == 15 then
-            console.log("")
+            console:log("")
         end
     end
     
-    console.log("")
-    console.log("=== END ROM DUMP ===")
+    console:log("")
+    console:log("=== END ROM DUMP ===")
 end
 
 -- Encodes misc2 field from individual IVs and flags
 function debugTools.encodeMisc2(hp, atk, def, spd, spatk, spdef, isEgg, ability)
-    console.log("=== ENCODE MISC 2 ===")
+    console:log("=== ENCODE MISC 2 ===")
     print("Input Values:")
     gameUtils.printTable({
         HP = hp,
@@ -108,7 +108,7 @@ function debugTools.encodeMisc2(hp, atk, def, spd, spatk, spdef, isEgg, ability)
 
     print("Encoded Misc 2 Value:")
     gameUtils.printHex(misc2)
-    console.log("=== END ENCODE MISC 2 ===")
+    console:log("=== END ENCODE MISC 2 ===")
     return misc2
 end
 

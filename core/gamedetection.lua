@@ -1,77 +1,77 @@
--- Game Detection Module for Pokemon Memory Reader
--- This module handles detecting which Pokemon game is currently loaded in BizHawk
+-- Game Detection Module for Pokemon Memory Reader (mGBA version)
+-- Detects which Pokemon game is currently loaded
 
 local gameDetection = {}
 local GamesDB = require("data.gamesdb")
 local gameUtils = require("utils.gameutils")
 
--- Main detection function
 function gameDetection.detectGame()
-    console.log("Detecting game...")
+    console:log("Detecting game...")
 
-    -- Get system ID
     local systemID = gameUtils.getSystem()
     if not systemID or systemID == "NULL" then
-        console.log("No system detected")
+        console:log("No system detected")
         return nil
     end
 
-    -- Get ROM hash from BizHawk
-    local romHash = gameUtils.getROMHash()
-    if not romHash then
-        console.log("Could not get ROM hash from BizHawk")
-        return nil
-    end
-    
-    -- Look up game in database by hash
-    local gameData = gameUtils.getGameData()
-
-    if gameData then
-        return gameData
-    end
-
-    console.log("Unknown " .. systemID .. " game detected with hash: " .. romHash)
-    console.log("Attempting to identify the game through game code...")
-
-    local gameCode = gameDetection.findGameCode()
+    -- mGBA: try game code first (most reliable)
+    local gameCode = emu:getGameCode()
     if gameCode then
-        console.log("Game code found: " .. gameCode)
-        gameData = gameUtils.getGameDataByCode(gameCode) or gameData
+        console:log("Game code: " .. gameCode)
+        local gameData = gameUtils.getGameDataByCode(gameCode)
         if gameData then
-            console.log("Game code matches: " .. gameData.gameInfo.gameName)
-            console.log("If this is incorrect, then you might be playing a modified version of the game. Please open a ticket on the github to have your game supported.")
+            console:log("Matched via game code: " .. (gameData.gameInfo.gameName or "Unknown"))
             return gameData
         end
-
-        console.log("Game code not found. You might be playing a modified version of the game. Please open a ticket on the github to have your game supported.")
     end
 
+    -- Fallback: try CRC32 hash lookup
+    local romHash = gameUtils.getROMHash()
+    if romHash then
+        console:log("ROM checksum: " .. romHash)
+        local gameData = GamesDB.getGameByHash(romHash)
+        if gameData then
+            return gameData
+        end
+    end
+
+    -- Fallback: read game code from memory (GBA ROM header at 0x080000AC)
+    local memCode = gameDetection.findGameCode()
+    if memCode then
+        console:log("Game code from ROM header: " .. memCode)
+        local gameData = gameUtils.getGameDataByCode(memCode)
+        if gameData then
+            console:log("Matched via ROM header code: " .. (gameData.gameInfo.gameName or "Unknown"))
+            return gameData
+        end
+    end
+
+    console:log("Unknown " .. systemID .. " game detected")
+    console:log("Game code: " .. (gameCode or "N/A"))
     return nil
 end
 
--- Function to read game code from a default memory address.
--- Typically doesn't need to be used.
 function gameDetection.findGameCode()
-    local code = memory.read_u16_le(0x00013C)
-    if not code then
-        return nil
-    end
-    return gameUtils.gameCodeToString(code)
+    -- GBA ROM header: game code at 0x080000AC (4 bytes)
+    local b1 = emu:read8(0x080000AC)
+    local b2 = emu:read8(0x080000AD)
+    local b3 = emu:read8(0x080000AE)
+    local b4 = emu:read8(0x080000AF)
+    if b1 == 0 and b2 == 0 then return nil end
+    return string.char(b1, b2, b3, b4)
 end
 
--- Get supported games list
 function gameDetection.getSupportedGames()
     return GamesDB.getSupportedGamesList()
 end
 
--- Validate if current game is supported
 function gameDetection.isGameSupported()
-    local romHash = gameUtils.getROMHash()
-    if not romHash then
-        return false
+    local gameCode = emu:getGameCode()
+    if gameCode then
+        local data = gameUtils.getGameDataByCode(gameCode)
+        if data then return true end
     end
-    
-    return GamesDB.isGameSupported(romHash)
+    return false
 end
 
 return gameDetection

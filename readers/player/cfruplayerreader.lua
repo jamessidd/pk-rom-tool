@@ -30,13 +30,13 @@ end
 
 function CFRUPlayerReader:updateTrainerInfo()
     if not MemoryReader.isInitialized or not MemoryReader.currentGame then
-        console.log("MemoryReader is not initialized or no game detected.")
+        console:log("MemoryReader is not initialized or no game detected.")
         return false
     end
 
     local gameData = MemoryReader.currentGame
     if not gameData or not gameData.trainerPointers or not gameData.trainerOffsets then
-        console.log("No CFRU trainer data available for this game.")
+        console:log("No CFRU trainer data available for this game.")
         return false
     end
 
@@ -167,7 +167,7 @@ function CFRUPlayerReader:readBag()
     self:updateTrainerInfo()
 
     if not self.trainerInfo then
-        console.log("Unable to read trainer info. Cannot read bag.")
+        console:log("Unable to read trainer info. Cannot read bag.")
         return false
     end
 

@@ -46,9 +46,9 @@ function PlayerReader:printBag()
     self:readBag()
     for pocketName, items in pairs(self.bag) do
         if #items > 0 then
-            console.log(pocketName .. ":")
+            console:log(pocketName .. ":")
             for _, item in ipairs(items) do
-                console.log(string.format("  - %s (ID: %d, Qty: %d)", item.name, item.id, item.quantity))
+                console:log(string.format("  - %s (ID: %d, Qty: %d)", item.name, item.id, item.quantity))
             end
         end
     end

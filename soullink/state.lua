@@ -87,7 +87,7 @@ function SoulLinkState:pushEvent(eventType, pokemon, extra)
         table.remove(self.recentEvents, 1)
     end
 
-    console.log(string.format(
+    console:log(string.format(
         "[SoulLink] %s: %s (%s) at %s",
         eventType,
         event.nickname or event.species,

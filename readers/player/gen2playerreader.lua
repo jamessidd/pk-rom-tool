@@ -15,13 +15,13 @@ end
 
 function Gen2PlayerReader:updateTrainerInfo()
     if not MemoryReader.isInitialized or not MemoryReader.currentGame then
-        console.log("MemoryReader not initialized or no game loaded")
+        console:log("MemoryReader not initialized or no game loaded")
         return
     end
 
     local gameData = MemoryReader.currentGame
     if not gameData or not gameData.trainerOffsets then
-        console.log("No game data or trainer offsets found")
+        console:log("No game data or trainer offsets found")
         return
     end
 
@@ -99,10 +99,10 @@ function Gen2PlayerReader:readBag()
     local gameData = MemoryReader.currentGame
 
     if not self.trainerInfo then
-        console.log("No trainer info available, cannot read bag")
+        console:log("No trainer info available, cannot read bag")
         return
     elseif not gameData or not gameData.trainerOffsets then
-        console.log("No game data or trainer offsets found")
+        console:log("No game data or trainer offsets found")
         return
     end
 

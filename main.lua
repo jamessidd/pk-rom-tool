@@ -1,6 +1,6 @@
--- Pokemon Memory Reader - Main Script
--- This script initializes the application and manages the game detection system
--- Global variables
+-- Pokemon Memory Reader - Main Script (mGBA version)
+-- Uses mGBA's callback-based scripting API instead of BizHawk's blocking loop
+
 MemoryReader = {}
 MemoryReader.currentGame = nil
 MemoryReader.gameAddresses = nil
@@ -8,20 +8,17 @@ MemoryReader.isInitialized = false
 MemoryReader.partyReader = nil
 MemoryReader.playerReader = nil
 MemoryReader.server = nil
-MemoryReader.serverEnabled = true -- Can be toggled by user
+MemoryReader.serverEnabled = true
 MemoryReader.soulLink = nil
 MemoryReader.battleReader = nil
 
--- Load required modules
 local gameDetection = require("core.gamedetection")
 local CFRUPartyReader = require("readers.party.cfrupartyreader")
 
--- Generation Party Readers
 local Gen3PartyReader = require("readers.party.gen3partyreader")
 local Gen2PartyReader = require("readers.party.gen2partyreader")
 local Gen1PartyReader = require("readers.party.gen1partyreader")
 
--- Generation Player Readers
 local CFRUPlayerReader = require("readers.player.cfruplayerreader")
 local Gen3PlayerReader = require("readers.player.gen3playerreader")
 local Gen2PlayerReader = require("readers.player.gen2playerreader")
@@ -35,26 +32,21 @@ local SoulLinkState = require("soullink.state")
 local BattleReader = require("readers.battle.battlereader")
 
 
--- Initialize the Memory Reader
 function MemoryReader.initialize()
-    console.log("----- Pokemon Memory Reader -----")
-    console.log("Initializing...")
-    
-    -- Detect the currently loaded game
+    console:log("----- Pokemon Memory Reader (mGBA) -----")
+    console:log("Initializing...")
+
     local detectedGame = gameDetection.detectGame()
-    
+
     if detectedGame and detectedGame.gameInfo then
-        -- Get game name from detected game info
         local gameName = detectedGame.gameInfo.gameName or "Unknown Game"
-        console.log("Game found: " .. gameName)
-        
+        console:log("Game found: " .. gameName)
+
         MemoryReader.currentGame = detectedGame
         MemoryReader.isInitialized = true
-        
-        -- Initialize Readers based on generation
+
         local generation = detectedGame.gameInfo.generation
 
-        -- CFRU is Generally for Gen3 Rom Hacks
         if generation == "CFRU" then
             MemoryReader.partyReader = CFRUPartyReader:new()
             MemoryReader.playerReader = CFRUPlayerReader:new()
@@ -68,34 +60,31 @@ function MemoryReader.initialize()
             MemoryReader.partyReader = Gen1PartyReader:new()
             MemoryReader.playerReader = Gen1PlayerReader:new()
         else
-            console.log("Unsupported generation: " .. tostring(generation))
+            console:log("Unsupported generation: " .. tostring(generation))
             return false
         end
-        
-        -- Start HTTP server
+
         if MemoryReader.serverEnabled then
             MemoryReader.startServer()
         end
 
         MemoryReader.soulLink = SoulLinkState:new()
         MemoryReader.battleReader = BattleReader:new()
-        
+
         return true
     else
         local supportedGames = gameDetection.getSupportedGames()
-        console.log("No supported Pokemon game detected!")
-        console.log("Supported games: " .. table.concat(supportedGames, ", "))
+        console:log("No supported Pokemon game detected!")
+        console:log("Supported games: " .. table.concat(supportedGames, ", "))
         return false
     end
 end
 
--- Main update loop (called every frame)
 function MemoryReader.update()
     if not MemoryReader.isInitialized then
         return
     end
-    
-    -- Update HTTP server
+
     if MemoryReader.server then
         MemoryReader.server:update()
     end
@@ -105,7 +94,6 @@ function MemoryReader.update()
     end
 end
 
--- Get enemy party data (only works during battles, returns empty outside)
 function MemoryReader.getEnemyPartyData()
     if not MemoryReader.isInitialized then return nil end
     if not MemoryReader.partyReader then return nil end
@@ -113,8 +101,6 @@ function MemoryReader.getEnemyPartyData()
     local gen = MemoryReader.currentGame.gameInfo.generation
     if gen ~= "CFRU" and gen ~= 3 then return nil end
     if not MemoryReader.currentGame.addresses.enemyPartyAddr then return nil end
-
-    local gameUtils = require("utils.gameutils")
 
     local flagsAddr = MemoryReader.currentGame.addresses.gBattleTypeFlags
     if flagsAddr then
@@ -147,55 +133,50 @@ function MemoryReader.getActiveSlots(playerParty, enemyParty)
     return MemoryReader.battleReader:getActiveSlots(addr, playerParty, enemyParty)
 end
 
--- Get party data based on game generation
 function MemoryReader.getPartyData()
     if not MemoryReader.isInitialized then
-        console.log("Memory Reader not initialized! Please restart the script.")
+        console:log("Memory Reader not initialized! Please restart the script.")
         return nil
     end
-    
+
     if not MemoryReader.partyReader then
-        console.log("Party reader not available for this game!")
+        console:log("Party reader not available for this game!")
         return nil
     end
-    
-    -- Read party based on game generation
+
     local gameCode = MemoryReader.currentGame.gameInfo.gameCode
     local party
-    
+
     if MemoryReader.currentGame.gameInfo.generation == 1 or MemoryReader.currentGame.gameInfo.generation == 2 then
-        -- Gen1 and Gen2 use integer addresses directly
         party = MemoryReader.partyReader:readParty(MemoryReader.currentGame.addresses, gameCode)
     else
-        -- Gen3 uses partyAddr (string hex format)
         if not MemoryReader.currentGame.addresses.partyAddr then
-            console.log("Player party address not available!")
+            console:log("Player party address not available!")
             return nil
         end
         local partyAddr = gameUtils.hexToNumber(MemoryReader.currentGame.addresses.partyAddr)
         party = MemoryReader.partyReader:readParty({partyAddr = partyAddr}, gameCode)
     end
-    
+
     return party
 end
 
--- Server management functions
 function MemoryReader.startServer()
     if MemoryReader.server then
-        console.log("Server is already running!")
+        console:log("Server is already running!")
         return true
     end
-    
+
     MemoryReader.server = Server:new(MemoryReader)
     return MemoryReader.server:start()
 end
 
 function MemoryReader.stopServer()
     if not MemoryReader.server then
-        console.log("Server is not running!")
+        console:log("Server is not running!")
         return true
     end
-    
+
     local success = MemoryReader.server:stop()
     MemoryReader.server = nil
     return success
@@ -204,27 +185,24 @@ end
 function MemoryReader.toggleServer()
     if MemoryReader.server then
         MemoryReader.stopServer()
-        console.log("Server disabled")
+        console:log("Server disabled")
     else
         if MemoryReader.startServer() then
-            console.log("Server enabled")
+            console:log("Server enabled")
         else
-            console.log("Failed to start server")
+            console:log("Failed to start server")
         end
     end
 end
 
--- Shutdown cleanup
 function MemoryReader.shutdown()
-    console.log("Pokemon Memory Reader shutting down...")
-    
-    -- Stop server if running
+    console:log("Pokemon Memory Reader shutting down...")
+
     if MemoryReader.server then
         MemoryReader.stopServer()
     end
 
     MemoryReader.soulLink = nil
-    
     MemoryReader.isInitialized = false
 end
 
@@ -236,19 +214,18 @@ for name, func in pairs(UserCommands) do
     end
 end
 
--- Initialize on script start
+-- Initialize and register mGBA callbacks
 if MemoryReader.initialize() then
-    console.log("----- PMR Ready -----")
-    console.log("Type help() for a list of commands!")
-    
-    -- Register event callbacks
-    event.onexit(MemoryReader.shutdown)
-    
-    -- Main execution loop
-    while true do
+    console:log("----- PMR Ready (mGBA) -----")
+    console:log("Type help() for a list of commands!")
+
+    callbacks:add("frame", function()
         MemoryReader.update()
-        emu.frameadvance()
-    end
+    end)
+
+    callbacks:add("shutdown", function()
+        MemoryReader.shutdown()
+    end)
 else
-    console.log("Initialization failed!")
+    console:log("Initialization failed!")
 end

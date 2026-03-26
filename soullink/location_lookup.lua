@@ -135,9 +135,9 @@ function LocationLookup.init(gameName)
         if _activeTable then
             local count = 0
             for _ in pairs(_activeTable) do count = count + 1 end
-            console.log(string.format("[LocationLookup] Loaded %d locations for '%s'", count, key))
+            console:log(string.format("[LocationLookup] Loaded %d locations for '%s'", count, key))
         else
-            console.log(string.format("[LocationLookup] No location table for '%s', using generic fallback", key))
+            console:log(string.format("[LocationLookup] No location table for '%s', using generic fallback", key))
         end
     end
 

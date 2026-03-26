@@ -7,6 +7,9 @@ local Gen1PartyReader = {}
 Gen1PartyReader.__index = Gen1PartyReader
 setmetatable(Gen1PartyReader, {__index = PartyReader})
 
+local function read8(addr) return emu:read8(addr) end
+local function read16be(addr) return (emu:read8(addr) * 256) + emu:read8(addr + 1) end
+
 -- Gen1 species list (based on internal species order, not Pokedex order)
 local speciesNamesList = {
     "Rhydon", "Kangaskhan", "Nidoran♂", "Clefairy", "Spearow", "Voltorb", "Nidoking", "Slowbro",
@@ -51,7 +54,7 @@ function Gen1PartyReader:readParty(addresses)
     local partySlotsCounterAddr = addresses.partySlotsCounterAddr
     local partyNicknamesAddr = addresses.partyNicknamesAddr
     
-    local partySlotsCounter = memory.readbyte(partySlotsCounterAddr) - 1
+    local partySlotsCounter = read8(partySlotsCounterAddr) - 1
     local party = {}
     
     for i = 0, math.min(partySlotsCounter, 5) do
@@ -66,36 +69,36 @@ function Gen1PartyReader:readPokemon(partyAddr, slot, partyNicknamesAddr)
     local pokemonStart = partyAddr + (slot * 0x2C)
     
     -- Read species ID
-    local speciesId = memory.readbyte(pokemonStart)
+    local speciesId = read8(pokemonStart)
     if speciesId == 0 then
         return {speciesID = 0}
     end
     
     -- Read basic data
-    local curHP = memory.read_u16_be(pokemonStart + 0x1)
-    local level = memory.readbyte(pokemonStart + 0x21) -- Actual level, not false level at 0x3
-    local status = memory.readbyte(pokemonStart + 0x4)
-    local type1 = memory.readbyte(pokemonStart + 0x5)
-    local type2 = memory.readbyte(pokemonStart + 0x6)
-    local catchRate = memory.readbyte(pokemonStart + 0x7)
-    local move1 = memory.readbyte(pokemonStart + 0x8)
-    local move2 = memory.readbyte(pokemonStart + 0x9)
-    local move3 = memory.readbyte(pokemonStart + 0xA)
-    local move4 = memory.readbyte(pokemonStart + 0xB)
-    local otid = memory.read_u16_be(pokemonStart + 0xC)
+    local curHP = read16be(pokemonStart + 0x1)
+    local level = read8(pokemonStart + 0x21) -- Actual level, not false level at 0x3
+    local status = read8(pokemonStart + 0x4)
+    local type1 = read8(pokemonStart + 0x5)
+    local type2 = read8(pokemonStart + 0x6)
+    local catchRate = read8(pokemonStart + 0x7)
+    local move1 = read8(pokemonStart + 0x8)
+    local move2 = read8(pokemonStart + 0x9)
+    local move3 = read8(pokemonStart + 0xA)
+    local move4 = read8(pokemonStart + 0xB)
+    local otid = read16be(pokemonStart + 0xC)
     
     -- Experience (3 bytes, big endian) - following working example
     local expAddr = pokemonStart + 0xE
-    local experience = (0x10000 * memory.readbyte(expAddr)) + 
-                      (0x100 * memory.readbyte(expAddr + 0x1)) + 
-                      memory.readbyte(expAddr + 0x2)
+    local experience = (0x10000 * read8(expAddr)) + 
+                      (0x100 * read8(expAddr + 0x1)) + 
+                      read8(expAddr + 0x2)
     
     -- HP EVs and stats (2 bytes each)
-    local hpEV = memory.read_u16_be(pokemonStart + 0x11)
-    local attackEV = memory.read_u16_be(pokemonStart + 0x13)
-    local defenseEV = memory.read_u16_be(pokemonStart + 0x15)
-    local speedEV = memory.read_u16_be(pokemonStart + 0x17)
-    local specialEV = memory.read_u16_be(pokemonStart + 0x19)
+    local hpEV = read16be(pokemonStart + 0x11)
+    local attackEV = read16be(pokemonStart + 0x13)
+    local defenseEV = read16be(pokemonStart + 0x15)
+    local speedEV = read16be(pokemonStart + 0x17)
+    local specialEV = read16be(pokemonStart + 0x19)
     
     -- DVs (Determinant Values) - 2 bytes
     local dvsAddr = pokemonStart + 0x1B
@@ -103,17 +106,17 @@ function Gen1PartyReader:readPokemon(partyAddr, slot, partyNicknamesAddr)
     local hpDV = self:calculateHPDV(atkDV, defDV, speDV, spcDV)
     
     -- PP (4 bytes)
-    local pp1 = memory.readbyte(pokemonStart + 0x1D)
-    local pp2 = memory.readbyte(pokemonStart + 0x1E)
-    local pp3 = memory.readbyte(pokemonStart + 0x1F)
-    local pp4 = memory.readbyte(pokemonStart + 0x20)
+    local pp1 = read8(pokemonStart + 0x1D)
+    local pp2 = read8(pokemonStart + 0x1E)
+    local pp3 = read8(pokemonStart + 0x1F)
+    local pp4 = read8(pokemonStart + 0x20)
     
     -- Stats
-    local maxHP = memory.read_u16_be(pokemonStart + 0x22)
-    local attack = memory.read_u16_be(pokemonStart + 0x24)
-    local defense = memory.read_u16_be(pokemonStart + 0x26)
-    local speed = memory.read_u16_be(pokemonStart + 0x28)
-    local special = memory.read_u16_be(pokemonStart + 0x2A)
+    local maxHP = read16be(pokemonStart + 0x22)
+    local attack = read16be(pokemonStart + 0x24)
+    local defense = read16be(pokemonStart + 0x26)
+    local speed = read16be(pokemonStart + 0x28)
+    local special = read16be(pokemonStart + 0x2A)
     
     -- Get species name
     local speciesName = speciesNamesList[speciesId] or "Unknown"
@@ -123,7 +126,7 @@ function Gen1PartyReader:readPokemon(partyAddr, slot, partyNicknamesAddr)
     if partyNicknamesAddr then
         local nicknameAddr = partyNicknamesAddr + (slot * 11) -- Each nickname is 11 bytes
         for i = 0, 10 do
-            local byte = memory.readbyte(nicknameAddr + i)
+            local byte = read8(nicknameAddr + i)
             if byte == 0x50 then -- Gen1 string terminator
                 break
             elseif byte ~= 0 then
@@ -196,8 +199,8 @@ end
 
 function Gen1PartyReader:getDVs(dvsAddr)
     -- Read the 2-byte DV value
-    local atkDefDVs = memory.readbyte(dvsAddr)
-    local speSpcDVs = memory.readbyte(dvsAddr + 0x1)
+    local atkDefDVs = read8(dvsAddr)
+    local speSpcDVs = read8(dvsAddr + 0x1)
     
     local atkDV = atkDefDVs >> 4
     local defDV = atkDefDVs & 0xF

@@ -1,4 +1,4 @@
--- Game Utility Functions
+-- Game Utility Functions (mGBA version)
 -- Common utilities for game code conversion, address handling, etc.
 local gamesDB = require("data.gamesdb")
 local constants = require("data.constants")
@@ -6,26 +6,33 @@ local charmaps = require("data.charmaps")
 
 local gameUtils = {}
 
--- MARK: BizAPI
+-- MARK: mGBA API
 
--- Returns the system id of the currently loaded core.
--- GB, GBC, GBA, NDS, etc.
 function gameUtils.getSystem()
-    return emu.getsystemid()
+    local plat = emu:platform()
+    if plat == C.PLATFORM.GBA then return "GBA"
+    elseif plat == C.PLATFORM.GB then return "GB"
+    else return "NULL" end
 end
 
--- BizHawk provides ROM hash through gameinfo
 function gameUtils.getROMHash()
-    return gameinfo.getromhash()
+    return emu:checksum(C.CHECKSUM.CRC32)
 end
 
--- Get game data from the games database using the current ROM hash
+function gameUtils.getGameCode()
+    return emu:getGameCode()
+end
+
 function gameUtils.getGameData()
-    local romHash = gameUtils.getROMHash()
-    return gamesDB.getGameByHash(romHash)
+    local code = gameUtils.getGameCode()
+    if code then
+        local data = gamesDB.getGameByCode(code)
+        if data then return data end
+    end
+    local hash = gameUtils.getROMHash()
+    return gamesDB.getGameByHash(hash)
 end
 
--- Get game data from the games database using a game code
 function gameUtils.getGameDataByCode(gameCode)
     return gamesDB.getGameByCode(gameCode)
 end
@@ -54,154 +61,93 @@ function gameUtils.hexToNumber(hexStr)
         return hexStr & 0xFFFFFFFF
     end
     if type(hexStr) == "string" then
-        -- remove 0x prefix and any non-hex characters (safety from bad DB entries)
         local s = hexStr:gsub("^0[xX]", ""):gsub("[^%x]", "")
         if s == "" then return nil end
         local n = tonumber(s, 16)
         if not n then return nil end
-        -- ensure n is 32-bit positive integer
         return n & 0xFFFFFFFF
     end
     return nil
 end
 
--- Return memory domain string and local (masked) address for a full 32-bit address
--- e.g. 0x02024284 -> returns "EWRAM", 0x024284
-function gameUtils.addrToDomainAndOffset(addr)
+-- MARK: Read
+
+-- mGBA uses full bus addresses directly (0x02XXXXXX for EWRAM, 0x08XXXXXX for ROM, etc.)
+function gameUtils.readMemory(addr, size)
     if type(addr) == "string" then
         addr = gameUtils.hexToNumber(addr)
     end
-    if not addr then return nil, nil end
-    -- ensure integer
-    addr = addr & 0xFFFFFFFF
-    local domainByte = (addr >> 24) & 0xFF
-    local mem = nil
-    if domainByte == 0 then
-        mem = "BIOS"
-    elseif domainByte == 2 then
-        mem = "EWRAM"
-    elseif domainByte == 3 then
-        mem = "IWRAM"
-    elseif domainByte == 8 then
-        mem = "ROM"
-    else
-        -- Unknown domain: choose ROM as a safe default for offline tables, but log
-        mem = "ROM"
-        console.log(string.format("Warning: unknown memory domain 0x%02X for address 0x%X", domainByte, addr))
-    end
-    local offset = addr & 0xFFFFFF
-    return mem, offset
-end
-
--- MARK: Read
-
--- Base memory reading function.
--- Handles memory domain selection based on address.
--- Can also take an override.
--- All memory reads should go through this function.
-function gameUtils.readMemory(addr, size, memOverride)
-    -- If addr is string like "02024284" convert and determine domain/offset
-    if type(addr) == "string" then
-        local memFromAddr, offsetFromAddr = gameUtils.addrToDomainAndOffset(addr)
-        if memOverride == nil then memOverride = memFromAddr end
-        addr = offsetFromAddr
-    end
-
-    local memdomain = 0
-    if memOverride then
-        -- if caller provided an explicit memOverride, try to map common names to domain byte for logging only
-        -- but memory.* functions expect the domain name string.
-    else
-        -- If numeric addr still has domain byte (shouldn't happen here), detect it
-        if addr > 0xFFFFFF then
-            memdomain = (addr >> 24) & 0xFF
-        else
-            memdomain = 0
-        end
-    end
-
-    local mem = memOverride or ""
-    if mem == "" then
-        if memdomain == 0 then mem = "BIOS"
-        elseif memdomain == 2 then mem = "EWRAM"
-        elseif memdomain == 3 then mem = "IWRAM"
-        elseif memdomain == 8 then mem = "ROM"
-        else mem = "ROM" end
-    end
-
-    -- ensure local address is within 24 bits
-    addr = addr & 0xFFFFFF
-
-    -- Basic safety: prevent obviously out-of-range reads from being attempted
-    -- (will still surface warnings if mem domain size mismatch)
-    if addr > 0xFFFFFF then
-        console.log(string.format("Warning: attempt to read with offset 0x%X which is > 24-bit", addr))
-    end
+    if not addr then return 0 end
 
     if size == 1 then
-        return memory.read_u8(addr, mem)
+        return emu:read8(addr)
     elseif size == 2 then
-        return memory.read_u16_le(addr, mem)
-    elseif size == 3 then
-        return memory.read_u24_le(addr, mem)
+        return emu:read16(addr)
     else
-        return memory.read_u32_le(addr, mem)
+        return emu:read32(addr)
     end
 end
 
--- Extract bits from a value (commonly used for Pokemon data)
 function gameUtils.getBits(value, start, length)
     return (value >> start) & ((1 << length) - 1)
 end
 
--- Basic reading functions for common sizes
-function gameUtils.read8(addr, memOverride)
-    return gameUtils.readMemory(addr, 1, memOverride)
+function gameUtils.read8(addr)
+    return gameUtils.readMemory(addr, 1)
 end
 
-function gameUtils.read16(addr, memOverride)
-    return gameUtils.readMemory(addr, 2, memOverride)
+function gameUtils.read16(addr)
+    return gameUtils.readMemory(addr, 2)
 end
 
-function gameUtils.read32(addr, memOverride)
-    return gameUtils.readMemory(addr, 4, memOverride)
+function gameUtils.read32(addr)
+    return gameUtils.readMemory(addr, 4)
 end
 
-function gameUtils.readBytes(startAddr, size, memOverride)
+function gameUtils.readBytes(startAddr, size)
+    if type(startAddr) == "string" then
+        startAddr = gameUtils.hexToNumber(startAddr)
+    end
     local bytes = {}
     for i = 0, size - 1 do
-        table.insert(bytes, gameUtils.read8(startAddr + i, memOverride))
+        table.insert(bytes, emu:read8(startAddr + i))
     end
     return bytes
 end
 
-function gameUtils.readByteRange(startAddr, endAddr, memOverride)
+function gameUtils.readByteRange(startAddr, endAddr)
+    if type(startAddr) == "string" then
+        startAddr = gameUtils.hexToNumber(startAddr)
+    end
+    if type(endAddr) == "string" then
+        endAddr = gameUtils.hexToNumber(endAddr)
+    end
     local bytes = {}
     for i = startAddr, endAddr do
-        table.insert(bytes, gameUtils.read8(i, memOverride))
+        table.insert(bytes, emu:read8(i))
     end
     return bytes
 end
 
--- CFRU Reading requires a special ROM read due to 28-bit addressing
+-- CFRU ROM reads use 28-bit addressing mapped to 0x08XXXXXX bus space
 function gameUtils.readBytesCFRU(startAddr, size)
-    local addr = startAddr & 0xFFFFFFF
+    local offset = startAddr & 0xFFFFFFF
     local bytes = {}
     for i = 0, size - 1 do
-        table.insert(bytes, memory.read_u8((addr + i) & 0xFFFFFFF, "ROM"))
+        local romAddr = 0x08000000 + ((offset + i) & 0xFFFFFFF)
+        table.insert(bytes, emu:read8(romAddr))
     end
     return bytes
 end
 
--- Reads from a starting address until it finds a null terminator or reaches maxLength.
--- @return Tuple(byte array, length)
-function gameUtils.readVariableLength(startAddr, maxLength, memOverride)
-    local currentAddr = startAddr
+function gameUtils.readVariableLength(startAddr, maxLength)
+    if type(startAddr) == "string" then
+        startAddr = gameUtils.hexToNumber(startAddr)
+    end
     local bytes = {}
     for i = 0, maxLength - 1 do
-        currentAddr = startAddr + i
-        local byte = gameUtils.read8(currentAddr, memOverride)
-        if byte == 0x50 then  -- End of string marker in Pokemon games
+        local byte = emu:read8(startAddr + i)
+        if byte == 0x50 then
             break
         end
         table.insert(bytes, byte)
@@ -211,50 +157,48 @@ end
 
 
 -- MARK: Write
-function gameUtils.writeMemory(startAddr, value, size, memOverride)
-    local mem = ""
-    local memdomain = (startAddr >> 24)
-    if memdomain == 0 then
-        mem = "BIOS"
-    elseif memdomain == 2 then
-        mem = "EWRAM"
-    elseif memdomain == 3 then
-        mem = "IWRAM"
-    elseif memdomain == 8 then
-        mem = "ROM"
+function gameUtils.writeMemory(startAddr, value, size)
+    if type(startAddr) == "string" then
+        startAddr = gameUtils.hexToNumber(startAddr)
     end
-    startAddr = (startAddr & 0xFFFFFF)
+    if not startAddr then return end
 
     if size == 1 then
-        memory.write_u8(startAddr, value, memOverride)
+        emu:write8(startAddr, value)
     elseif size == 2 then
-        memory.write_u16_le(startAddr, value, memOverride)
-    elseif size == 3 then
-        memory.write_u24_le(startAddr, value, memOverride)
+        emu:write16(startAddr, value)
     else
-        memory.write_u32_le(startAddr, value, memOverride)
+        emu:write32(startAddr, value)
     end
 end
 
-function gameUtils.write8(startAddr, value, memOverride)
-    gameUtils.writeMemory(startAddr, value, 1, memOverride)
+function gameUtils.write8(startAddr, value)
+    gameUtils.writeMemory(startAddr, value, 1)
 end
 
-function gameUtils.write16(startAddr, value, memOverride)
-    gameUtils.writeMemory(startAddr, value, 2, memOverride)
+function gameUtils.write16(startAddr, value)
+    gameUtils.writeMemory(startAddr, value, 2)
 end
 
-function gameUtils.write24(startAddr, value, memOverride)
-    gameUtils.writeMemory(startAddr, value, 3, memOverride)
+function gameUtils.write24(startAddr, value)
+    -- mGBA has no write24; write as 16+8
+    if type(startAddr) == "string" then
+        startAddr = gameUtils.hexToNumber(startAddr)
+    end
+    emu:write16(startAddr, value & 0xFFFF)
+    emu:write8(startAddr + 2, (value >> 16) & 0xFF)
 end
 
-function gameUtils.write32(startAddr, value, memOverride)
-    gameUtils.writeMemory(startAddr, value, 4, memOverride)
+function gameUtils.write32(startAddr, value)
+    gameUtils.writeMemory(startAddr, value, 4)
 end
 
-function gameUtils.writeBytes(startAddr, byteArray, memOverride)
+function gameUtils.writeBytes(startAddr, byteArray)
+    if type(startAddr) == "string" then
+        startAddr = gameUtils.hexToNumber(startAddr)
+    end
     for i = 0, #byteArray - 1 do
-        gameUtils.write8(startAddr + i, byteArray[i + 1], memOverride)
+        emu:write8(startAddr + i, byteArray[i + 1])
     end
 end
 
@@ -302,12 +246,12 @@ end
 
 function gameUtils.printTable(table, format)
     for k, v in pairs(table) do
-        console.log(string.format(format or "%s: %s", k, v))
+        console:log(string.format(format or "%s: %s", k, v))
     end
 end
 
 function gameUtils.printHex(value)
-    console.log(string.format("%X", value))
+    console:log(string.format("%X", value))
 end
 
 function gameUtils.printHexTable(table1)
@@ -318,7 +262,7 @@ function gameUtils.printHexTable(table1)
             result = result .. ", "
         end
     end
-    console.log("Hex Table: " .. result)
+    console:log("Hex Table: " .. result)
 end
 
 return gameUtils

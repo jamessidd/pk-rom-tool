@@ -1,17 +1,15 @@
 -- =============================================================
--- Move & Ability Name Table Dumper (Dev Tool)
+-- Move & Ability Name Table Dumper (Dev Tool) - mGBA version
 -- =============================================================
--- Self-running BizHawk script. Scans the loaded ROM to find the
+-- Self-running mGBA script. Scans the loaded ROM to find the
 -- move name table and ability name table, then writes them to
 -- files ready to paste into gamesdb.lua.
 --
 -- Usage:
---   1. Load your ROM in BizHawk (any screen is fine)
---   2. Tools > Lua Console > Open Script > this file
+--   1. Load your ROM in mGBA
+--   2. Tools > Scripting > Load Script > this file
 --   3. Wait for "DONE" in the console (~2-5 minutes)
 --   4. Check tools/move_names_dump.txt and tools/ability_names_dump.txt
---
--- Output goes to FILES to avoid BizHawk console truncation.
 --
 -- NOTE: Anchor IDs are verified for Radical Red. Other CFRU hacks
 -- may reorder move/ability IDs. If the scanner fails, update the
@@ -63,10 +61,20 @@ local function encodeGBA(str)
     return bytes
 end
 
+local ROM_BASE = 0x08000000
+
+local function romRead8(offset)
+    return emu:read8(ROM_BASE + (offset & 0x1FFFFFF))
+end
+
+local function romRead32(offset)
+    return emu:read32(ROM_BASE + (offset & 0x1FFFFFF))
+end
+
 local function readStr(addr)
     local chars = {}
     for i = 0, 20 do
-        local b = memory.read_u8((addr + i) & 0x1FFFFFF, "ROM")
+        local b = romRead8((addr + i) & 0x1FFFFFF)
         if b == 0xFF then break end
         local ch = GBACharmap[b]
         if ch then chars[#chars + 1] = ch end
@@ -77,7 +85,7 @@ end
 local function isROMPtr(v) return v >= 0x08000000 and v < 0x0A000000 end
 
 local function yield()
-    if emu and emu.frameadvance then emu.frameadvance() end
+    -- mGBA scripts run cooperatively; no explicit yield needed
 end
 
 local function isValidName(s)
@@ -94,7 +102,7 @@ local function findAll(pattern, romSize)
     for addr = 0, romSize - #pattern do
         local ok = true
         for i = 1, #pattern do
-            if memory.read_u8(addr + i - 1, "ROM") ~= pattern[i] then ok = false; break end
+            if romRead8(addr + i - 1) ~= pattern[i] then ok = false; break end
         end
         if ok then results[#results + 1] = addr end
         if addr % 0x10000 == 0 then yield() end
@@ -114,8 +122,8 @@ local function findPtrs(target, romSize)
         if #results > 0 then break end
         local lo = range[1] - (range[1] % 4)
         for addr = lo, range[2], 4 do
-            if memory.read_u8(addr,"ROM")==b1 and memory.read_u8(addr+1,"ROM")==b2 and
-               memory.read_u8(addr+2,"ROM")==b3 and memory.read_u8(addr+3,"ROM")==b4 then
+            if romRead8(addr)==b1 and romRead8(addr+1)==b2 and
+               romRead8(addr+2)==b3 and romRead8(addr+3)==b4 then
                 results[#results+1] = addr
             end
             if addr % 0x40000 == 0 then yield() end
@@ -130,18 +138,18 @@ end
 --   2. Pointer table (4+ byte stride, pointer to string)
 
 local function scanNameTable(label, anchors, verifyPairs, maxEntries, romSize)
-    console.log(string.format("[%s] Scanning...", label))
+    console:log(string.format("[%s] Scanning...", label))
 
     for _, anchor in ipairs(anchors) do
         local pattern = encodeGBA(anchor.name)
         if not pattern then
-            console.log(string.format("[%s] Could not encode '%s', skipping", label, anchor.name))
+            console:log(string.format("[%s] Could not encode '%s', skipping", label, anchor.name))
             goto nextAnchor
         end
 
-        console.log(string.format("[%s] Searching for '%s' (ID %d)...", label, anchor.name, anchor.id))
+        console:log(string.format("[%s] Searching for '%s' (ID %d)...", label, anchor.name, anchor.id))
         local matches = findAll(pattern, romSize)
-        console.log(string.format("[%s]   %d match(es)", label, #matches))
+        console:log(string.format("[%s]   %d match(es)", label, #matches))
 
         for _, soff in ipairs(matches) do
             -- Approach 1: Direct fixed-stride string table
@@ -166,7 +174,7 @@ local function scanNameTable(label, anchors, verifyPairs, maxEntries, romSize)
             -- Approach 2: Pointer table (string is pointed to by a table entry)
             local absAddr = 0x08000000 + soff
             local ptrs = findPtrs(absAddr, romSize)
-            console.log(string.format("[%s]   %d pointer(s) to 0x%08X", label, #ptrs, absAddr))
+            console:log(string.format("[%s]   %d pointer(s) to 0x%08X", label, #ptrs, absAddr))
 
             for _, poff in ipairs(ptrs) do
                 for stride = 4, 24, 2 do
@@ -178,7 +186,7 @@ local function scanNameTable(label, anchors, verifyPairs, maxEntries, romSize)
                                 if vp.id ~= anchor.id then
                                     local ca = base + vp.id * stride + nameOff
                                     if ca + 4 <= romSize then
-                                        local p = memory.read_u32_le(ca, "ROM")
+                                        local p = romRead32(ca)
                                         if isROMPtr(p) then
                                             local n = readStr(p & 0x1FFFFFF)
                                             if n ~= vp.name then good = false; break end
@@ -218,7 +226,7 @@ local function dumpPointerTable(result, maxEntries, romSize)
     for id = 0, maxEntries do
         local ea = result.base + id * result.stride + result.nameOff
         if ea + 4 <= romSize then
-            local ptr = memory.read_u32_le(ea, "ROM")
+            local ptr = romRead32(ea)
             if isROMPtr(ptr) then
                 local name = readStr(ptr & 0x1FFFFFF)
                 if isValidName(name) then
@@ -254,17 +262,17 @@ end
 -- ---- Main ----
 
 local function run()
-    console.clear()
-    console.log("=========================================")
-    console.log("  Move & Ability Name Table Dumper")
-    console.log("=========================================")
-    console.log("")
+    console:clear()
+    console:log("=========================================")
+    console:log("  Move & Ability Name Table Dumper")
+    console:log("=========================================")
+    console:log("")
 
     local romSize = 0x01000000
-    local ok, _ = pcall(function() memory.read_u8(0x01800000, "ROM") end)
-    if ok then romSize = 0x02000000 end
-    console.log(string.format("ROM size: %d MB", romSize / 0x100000))
-    console.log("")
+    local ok2, _ = pcall(function() romRead8(0x01800000) end)
+    if ok2 then romSize = 0x02000000 end
+    console:log(string.format("ROM size: %d MB", romSize / 0x100000))
+    console:log("")
 
     -- ---- MOVE NAMES ----
     -- WARNING: These anchor IDs are verified for Radical Red.
@@ -285,11 +293,11 @@ local function run()
         { id = 638, name = "Wide Guard" },
     }
 
-    console.log("=== MOVE NAMES ===")
+    console:log("=== MOVE NAMES ===")
     local moveResult = scanNameTable("Moves", moveAnchors, moveVerify, 1000, romSize)
 
     if moveResult then
-        console.log(string.format("[Moves] TABLE FOUND! Type=%s, ROM+0x%06X, stride=%d",
+        console:log(string.format("[Moves] TABLE FOUND! Type=%s, ROM+0x%06X, stride=%d",
             moveResult.type, moveResult.base, moveResult.stride))
 
         local entries
@@ -300,12 +308,12 @@ local function run()
         end
 
         writeEntries(MOVE_OUTPUT, "Move", moveResult, entries)
-        console.log(string.format("[Moves] Wrote %d entries to %s", #entries, MOVE_OUTPUT))
+        console:log(string.format("[Moves] Wrote %d entries to %s", #entries, MOVE_OUTPUT))
     else
-        console.log("[Moves] FAILED: could not find move name table")
+        console:log("[Moves] FAILED: could not find move name table")
     end
 
-    console.log("")
+    console:log("")
 
     -- ---- ABILITY NAMES ----
     -- WARNING: These anchor IDs are verified for Radical Red.
@@ -325,11 +333,11 @@ local function run()
         { id = 195, name = "Quark Drive" },
     }
 
-    console.log("=== ABILITY NAMES ===")
+    console:log("=== ABILITY NAMES ===")
     local abilityResult = scanNameTable("Abilities", abilityAnchors, abilityVerify, 500, romSize)
 
     if abilityResult then
-        console.log(string.format("[Abilities] TABLE FOUND! Type=%s, ROM+0x%06X, stride=%d",
+        console:log(string.format("[Abilities] TABLE FOUND! Type=%s, ROM+0x%06X, stride=%d",
             abilityResult.type, abilityResult.base, abilityResult.stride))
 
         local entries
@@ -340,31 +348,31 @@ local function run()
         end
 
         writeEntries(ABILITY_OUTPUT, "Ability", abilityResult, entries)
-        console.log(string.format("[Abilities] Wrote %d entries to %s", #entries, ABILITY_OUTPUT))
+        console:log(string.format("[Abilities] Wrote %d entries to %s", #entries, ABILITY_OUTPUT))
     else
-        console.log("[Abilities] FAILED: could not find ability name table")
+        console:log("[Abilities] FAILED: could not find ability name table")
     end
 
-    console.log("")
-    console.log("=========================================")
+    console:log("")
+    console:log("=========================================")
     if moveResult or abilityResult then
-        console.log("DONE! Check the output files in tools/")
+        console:log("DONE! Check the output files in tools/")
         if moveResult then
-            console.log("  Moves:     " .. MOVE_OUTPUT)
+            console:log("  Moves:     " .. MOVE_OUTPUT)
         end
         if abilityResult then
-            console.log("  Abilities: " .. ABILITY_OUTPUT)
+            console:log("  Abilities: " .. ABILITY_OUTPUT)
         end
-        console.log("")
-        console.log("Use the gamesdb address from each file to update")
-        console.log("the moveNamesTable / abilityNameTable in gamesdb.lua")
+        console:log("")
+        console:log("Use the gamesdb address from each file to update")
+        console:log("the moveNamesTable / abilityNameTable in gamesdb.lua")
     else
-        console.log("Could not find either table in this ROM.")
+        console:log("Could not find either table in this ROM.")
     end
-    console.log("=========================================")
+    console:log("=========================================")
 end
 
 local success, err = pcall(run)
 if not success then
-    console.log("ERROR: " .. tostring(err))
+    console:log("ERROR: " .. tostring(err))
 end

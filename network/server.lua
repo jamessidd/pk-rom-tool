@@ -1,9 +1,5 @@
--- HTTP Server for Pokemon Memory Reader
--- Main server entry point that orchestrates the modular HTTP server components
-
--- Add LuaSocket path to package path
-package.path = package.path .. ";./modules/LuaSocket/?.lua"
-package.cpath = package.cpath .. ";./modules/LuaSocket/socket/?.dll;./modules/LuaSocket/mime/?.dll"
+-- HTTP Server for Pokemon Memory Reader (mGBA version)
+-- Uses mGBA's built-in socket API instead of LuaSocket
 
 local HttpServer = require("network.http_server")
 

@@ -1,7 +1,7 @@
 -- =============================================================
--- MAPSEC Location Name Dumper (Dev Tool)
+-- MAPSEC Location Name Dumper (Dev Tool) - mGBA version
 -- =============================================================
--- Self-running BizHawk script. Load a ROM, run this script, and
+-- Self-running mGBA script. Load a ROM, run this script, and
 -- it handles everything automatically:
 --   1. Detects ROM size
 --   2. Scans for the MAPSEC name table
@@ -9,13 +9,10 @@
 --   4. Stops itself when done
 --
 -- Usage:
---   1. Load your ROM in BizHawk (any screen is fine)
---   2. Tools > Lua Console > Open Script > this file
+--   1. Load your ROM in mGBA
+--   2. Tools > Scripting > Load Script > this file
 --   3. Wait for "DONE" in the console (~1-3 minutes)
 --   4. Open tools/location_dump.lua and paste into location_lookup.lua
---
--- Output goes to a FILE, not the console, so BizHawk's message
--- cap won't truncate anything.
 --
 -- NOTE: Anchor MAPSEC IDs (89 = Viridian City, 101 = Route 1)
 -- are verified for Radical Red. Other CFRU hacks may use different
@@ -69,10 +66,20 @@ local VERIFY = {
 
 -- ---- Helpers ----
 
+local ROM_BASE = 0x08000000
+
+local function romRead8(offset)
+    return emu:read8(ROM_BASE + (offset & 0x1FFFFFF))
+end
+
+local function romRead32(offset)
+    return emu:read32(ROM_BASE + (offset & 0x1FFFFFF))
+end
+
 local function readStr(addr)
     local chars = {}
     for i = 0, 30 do
-        local b = memory.read_u8((addr + i) & 0x1FFFFFF, "ROM")
+        local b = romRead8((addr + i) & 0x1FFFFFF)
         if b == 0xFF then break end
         local ch = GBACharmap[b]
         if ch then chars[#chars + 1] = ch end
@@ -90,7 +97,7 @@ local function isLocationName(s)
 end
 
 local function yield()
-    if emu and emu.frameadvance then emu.frameadvance() end
+    -- mGBA scripts run cooperatively; no explicit yield needed
 end
 
 local function findAll(pattern, romSize)
@@ -98,7 +105,7 @@ local function findAll(pattern, romSize)
     for addr = 0, romSize - #pattern do
         local ok = true
         for i = 1, #pattern do
-            if memory.read_u8(addr + i - 1, "ROM") ~= pattern[i] then ok = false; break end
+            if romRead8(addr + i - 1) ~= pattern[i] then ok = false; break end
         end
         if ok then results[#results + 1] = addr end
         if addr % 0x10000 == 0 then yield() end
@@ -120,8 +127,8 @@ local function findPtrs(target, romSize)
         if #results > 0 then break end
         local lo = range[1] - (range[1] % 4)
         for addr = lo, range[2], 4 do
-            if memory.read_u8(addr,"ROM")==b1 and memory.read_u8(addr+1,"ROM")==b2 and
-               memory.read_u8(addr+2,"ROM")==b3 and memory.read_u8(addr+3,"ROM")==b4 then
+            if romRead8(addr)==b1 and romRead8(addr+1)==b2 and
+               romRead8(addr+2)==b3 and romRead8(addr+3)==b4 then
                 results[#results+1] = addr
             end
             if addr % 0x40000 == 0 then yield() end
@@ -140,7 +147,7 @@ local function tryTable(ptrOffset, anchorMapsec, romSize)
                     if vp.mapsec ~= anchorMapsec then
                         local ca = base + vp.mapsec * stride + nameOff
                         if ca + 4 <= romSize then
-                            local p = memory.read_u32_le(ca, "ROM")
+                            local p = romRead32(ca)
                             if isROMPtr(p) then
                                 local n = readStr(p & 0x1FFFFFF)
                                 if n ~= vp.exact and n ~= vp.alt then good = false end
@@ -160,38 +167,38 @@ end
 -- ---- Main scan ----
 
 local function run()
-    console.clear()
-    console.log("=========================================")
-    console.log("  MAPSEC Location Name Dumper")
-    console.log("=========================================")
-    console.log("")
+    console:clear()
+    console:log("=========================================")
+    console:log("  MAPSEC Location Name Dumper")
+    console:log("=========================================")
+    console:log("")
 
     -- Detect ROM size
     local romSize = 0x01000000
-    local ok, _ = pcall(function() memory.read_u8(0x01800000, "ROM") end)
-    if ok then romSize = 0x02000000 end
-    console.log(string.format("ROM size: %d MB", romSize / 0x100000))
-    console.log("Output: " .. OUTPUT_FILE)
-    console.log("")
-    console.log("Scanning... emulator will stutter but won't freeze.")
-    console.log("")
+    local ok2, _ = pcall(function() romRead8(0x01800000) end)
+    if ok2 then romSize = 0x02000000 end
+    console:log(string.format("ROM size: %d MB", romSize / 0x100000))
+    console:log("Output: " .. OUTPUT_FILE)
+    console:log("")
+    console:log("Scanning... emulator will stutter but won't freeze.")
+    console:log("")
 
     for _, anchor in ipairs(ANCHORS) do
         for _, pattern in ipairs(anchor.patterns) do
-            console.log(string.format("[scan] Searching for '%s' (MAPSEC %d)...", anchor.label, anchor.mapsec))
+            console:log(string.format("[scan] Searching for '%s' (MAPSEC %d)...", anchor.label, anchor.mapsec))
             local strings = findAll(pattern, romSize)
-            console.log(string.format("[scan]   %d match(es)", #strings))
+            console:log(string.format("[scan]   %d match(es)", #strings))
 
             for _, soff in ipairs(strings) do
                 local absAddr = 0x08000000 + soff
-                console.log(string.format("[scan]   String at 0x%08X — finding pointers...", absAddr))
+                console:log(string.format("[scan]   String at 0x%08X — finding pointers...", absAddr))
                 local ptrs = findPtrs(absAddr, romSize)
-                console.log(string.format("[scan]   %d pointer(s)", #ptrs))
+                console:log(string.format("[scan]   %d pointer(s)", #ptrs))
 
                 for _, poff in ipairs(ptrs) do
                     local base, stride, nameOff = tryTable(poff, anchor.mapsec, romSize)
                     if base then
-                        console.log(string.format("[scan] TABLE FOUND at ROM+0x%06X (stride=%d)", base, stride))
+                        console:log(string.format("[scan] TABLE FOUND at ROM+0x%06X (stride=%d)", base, stride))
 
                         -- Collect entries, filtering out descriptions and garbage
                         local entries = {}
@@ -199,7 +206,7 @@ local function run()
                         for m = 0, 255 do
                             local ea = base + m * stride + nameOff
                             if ea + 4 <= romSize then
-                                local np = memory.read_u32_le(ea, "ROM")
+                                local np = romRead32(ea)
                                 if isROMPtr(np) then
                                     local name = readStr(np & 0x1FFFFFF)
                                     if isLocationName(name) then
@@ -211,7 +218,7 @@ local function run()
                             end
                         end
                         if skipped > 0 then
-                            console.log(string.format("[scan] Filtered out %d non-name entries (descriptions/garbage)", skipped))
+                            console:log(string.format("[scan] Filtered out %d non-name entries (descriptions/garbage)", skipped))
                         end
 
                         -- Write to file
@@ -236,13 +243,13 @@ local function run()
                         f:write("}\n")
                         f:close()
 
-                        console.log("")
-                        console.log(string.format("DONE! Wrote %d entries to:", #entries))
-                        console.log("  " .. OUTPUT_FILE)
-                        console.log("")
-                        console.log('Rename CHANGE_ME to your game name and paste')
-                        console.log("into soullink/location_lookup.lua")
-                        console.log("=========================================")
+                        console:log("")
+                        console:log(string.format("DONE! Wrote %d entries to:", #entries))
+                        console:log("  " .. OUTPUT_FILE)
+                        console:log("")
+                        console:log('Rename CHANGE_ME to your game name and paste')
+                        console:log("into soullink/location_lookup.lua")
+                        console:log("=========================================")
                         return true
                     end
                 end
@@ -250,15 +257,15 @@ local function run()
         end
     end
 
-    console.log("")
-    console.log("FAILED: Could not find MAPSEC name table in this ROM.")
-    console.log("You may need to add location entries manually.")
-    console.log("=========================================")
+    console:log("")
+    console:log("FAILED: Could not find MAPSEC name table in this ROM.")
+    console:log("You may need to add location entries manually.")
+    console:log("=========================================")
     return false
 end
 
 -- ---- Auto-run (like main.lua) ----
 local success, err = pcall(run)
 if not success then
-    console.log("ERROR: " .. tostring(err))
+    console:log("ERROR: " .. tostring(err))
 end

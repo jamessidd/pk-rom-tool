@@ -83,14 +83,14 @@ function pokemonData.readSpeciesData(speciesId)
     -- Get game data from database
     local gameData = MemoryReader.currentGame
     if not gameData then
-        console.log("Game data not found for current ROM!")
+        console:log("Game data not found for current ROM!")
         return nil
     end
 
     -- Get species data table address
     local speciesDataAddr = gameData.addresses.speciesDataTable
     if not speciesDataAddr then
-        console.log("Unknown species data address for game: " .. gameData.gameInfo.name)
+        console:log("Unknown species data address for game: " .. gameData.gameInfo.name)
         return nil
     end
     
@@ -154,7 +154,7 @@ end
 function pokemonData.getAbilityName(abilityId)
     local gameData = MemoryReader.currentGame
     if not gameData then
-        console.log("Game data not found for current ROM!")
+        console:log("Game data not found for current ROM!")
         return "Unknown"
     end
 
@@ -162,7 +162,7 @@ function pokemonData.getAbilityName(abilityId)
     if not abilityNameTableAddr then
         local gameKey = gameData.gameInfo and gameData.gameInfo.gameName or "unknown"
         if not warnedMissingAbilityNameTable[gameKey] then
-            console.log("No ability name table address for game. Falling back to constants.")
+            console:log("No ability name table address for game. Falling back to constants.")
             warnedMissingAbilityNameTable[gameKey] = true
         end
         if abilityId >= 0 and abilityId < #constants.pokemonData.ability then
@@ -202,13 +202,13 @@ end
 function pokemonData.getTMMoveID(tmNumber)
     local gameData = MemoryReader.currentGame
     if not gameData then
-        console.log("Game data not found for current ROM!")
+        console:log("Game data not found for current ROM!")
         return nil
     end
 
     local tmToMoveTableAddr = gameData.addresses.tmToMoveTable
     if not tmToMoveTableAddr then
-        console.log("No TM to Move table address for game.")
+        console:log("No TM to Move table address for game.")
         return nil
     end
 
@@ -252,7 +252,7 @@ end
 function pokemonData.getMoveName(moveId)
     local gameData = MemoryReader.currentGame
     if not gameData then
-        console.log("Game data not found for current ROM!")
+        console:log("Game data not found for current ROM!")
         return "Unknown"
     end
     local movesTableAddr = gameUtils.hexToNumber(gameData.addresses.moveNamesTable)
@@ -291,7 +291,7 @@ function pokemonData.getItemName(itemID)
 
     local gameData = MemoryReader.currentGame
     if not gameData then
-        console.log("Game data not found for current ROM!")
+        console:log("Game data not found for current ROM!")
         return "Unknown"
     end
 
@@ -301,7 +301,7 @@ function pokemonData.getItemName(itemID)
         if name and name ~= "" then
             return name
         end
-            console.log("Failed to read item with id " .. itemID .. " from ROM.")
+            console:log("Failed to read item with id " .. itemID .. " from ROM.")
     end
 
     -- Fallback to constants if no ROM table is available.
@@ -333,7 +333,7 @@ function pokemonData.getItemFromROM(itemID, gameData)
     end
 
     if not tableAddr then
-        console.log("No item name table address.")
+        console:log("No item name table address.")
         return nil
     end
 

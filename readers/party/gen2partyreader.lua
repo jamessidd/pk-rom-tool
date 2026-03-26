@@ -7,6 +7,9 @@ local Gen2PartyReader = {}
 Gen2PartyReader.__index = Gen2PartyReader
 setmetatable(Gen2PartyReader, {__index = PartyReader})
 
+local function read8(addr) return emu:read8(addr) end
+local function read16be(addr) return (emu:read8(addr) * 256) + emu:read8(addr + 1) end
+
 
 function Gen2PartyReader:new()
     local obj = PartyReader:new()
@@ -24,7 +27,7 @@ function Gen2PartyReader:readParty(addresses)
     local partySlotsCounterAddr = addresses.partySlotsCounterAddr
     local partyNicknamesAddr = addresses.partyNicknamesAddr
     
-    local partySlotsCounter = memory.readbyte(partySlotsCounterAddr)
+    local partySlotsCounter = read8(partySlotsCounterAddr)
     local party = {}
     
     for i = 0, math.min(partySlotsCounter - 1, 5) do
@@ -39,31 +42,31 @@ function Gen2PartyReader:readPokemon(partyAddr, slot, partyNicknamesAddr)
     local pokemonStart = partyAddr + (slot * 0x30)
     
     -- Read species ID
-    local speciesId = memory.readbyte(pokemonStart)
+    local speciesId = read8(pokemonStart)
     if speciesId == 0 then
         return {speciesID = 0}
     end
     
     -- Read basic data
-    local heldItem = memory.readbyte(pokemonStart + 0x1)
-    local move1 = memory.readbyte(pokemonStart + 0x2)
-    local move2 = memory.readbyte(pokemonStart + 0x3)
-    local move3 = memory.readbyte(pokemonStart + 0x4)
-    local move4 = memory.readbyte(pokemonStart + 0x5)
-    local otid = memory.read_u16_be(pokemonStart + 0x6)
+    local heldItem = read8(pokemonStart + 0x1)
+    local move1 = read8(pokemonStart + 0x2)
+    local move2 = read8(pokemonStart + 0x3)
+    local move3 = read8(pokemonStart + 0x4)
+    local move4 = read8(pokemonStart + 0x5)
+    local otid = read16be(pokemonStart + 0x6)
     
     -- Experience (3 bytes, big endian)
     local expAddr = pokemonStart + 0x8
-    local experience = (0x10000 * memory.readbyte(expAddr)) + 
-                      (0x100 * memory.readbyte(expAddr + 0x1)) + 
-                      memory.readbyte(expAddr + 0x2)
+    local experience = (0x10000 * read8(expAddr)) + 
+                      (0x100 * read8(expAddr + 0x1)) + 
+                      read8(expAddr + 0x2)
     
     -- HP EVs (called Stat Experience in Gen2) - 2 bytes each
-    local hpEV = memory.read_u16_be(pokemonStart + 0xB)
-    local attackEV = memory.read_u16_be(pokemonStart + 0xD)
-    local defenseEV = memory.read_u16_be(pokemonStart + 0xF)
-    local speedEV = memory.read_u16_be(pokemonStart + 0x11)
-    local specialEV = memory.read_u16_be(pokemonStart + 0x13)
+    local hpEV = read16be(pokemonStart + 0xB)
+    local attackEV = read16be(pokemonStart + 0xD)
+    local defenseEV = read16be(pokemonStart + 0xF)
+    local speedEV = read16be(pokemonStart + 0x11)
+    local specialEV = read16be(pokemonStart + 0x13)
     
     -- DVs (Determinant Values) - 2 bytes
     local dvsAddr = pokemonStart + 0x15
@@ -71,33 +74,33 @@ function Gen2PartyReader:readPokemon(partyAddr, slot, partyNicknamesAddr)
     local hpDV = self:calculateHPDV(atkDV, defDV, speDV, spcDV)
     
     -- PP (4 bytes)
-    local pp1 = memory.readbyte(pokemonStart + 0x17)
-    local pp2 = memory.readbyte(pokemonStart + 0x18)
-    local pp3 = memory.readbyte(pokemonStart + 0x19)
-    local pp4 = memory.readbyte(pokemonStart + 0x1A)
+    local pp1 = read8(pokemonStart + 0x17)
+    local pp2 = read8(pokemonStart + 0x18)
+    local pp3 = read8(pokemonStart + 0x19)
+    local pp4 = read8(pokemonStart + 0x1A)
     
     -- Friendship (Gen2 introduced this)
-    local friendship = memory.readbyte(pokemonStart + 0x1B)
+    local friendship = read8(pokemonStart + 0x1B)
     
     -- Pokerus
-    local pokerus = memory.readbyte(pokemonStart + 0x1C)
+    local pokerus = read8(pokemonStart + 0x1C)
     
     -- Caught data (2 bytes)
-    local caughtData = memory.read_u16_be(pokemonStart + 0x1D)
+    local caughtData = read16be(pokemonStart + 0x1D)
     
     -- Level
-    local level = memory.readbyte(pokemonStart + 0x1F)
+    local level = read8(pokemonStart + 0x1F)
     
     -- Status condition
-    local status = memory.readbyte(pokemonStart + 0x20)
+    local status = read8(pokemonStart + 0x20)
     
     -- Current HP
-    local curHP = memory.read_u16_be(pokemonStart + 0x22)
-    local maxHP = memory.read_u16_be(pokemonStart + 0x24)
-    local attack = memory.read_u16_be(pokemonStart + 0x26)
-    local defense = memory.read_u16_be(pokemonStart + 0x28)
-    local speed = memory.read_u16_be(pokemonStart + 0x2A)
-    local special = memory.read_u16_be(pokemonStart + 0x2C)
+    local curHP = read16be(pokemonStart + 0x22)
+    local maxHP = read16be(pokemonStart + 0x24)
+    local attack = read16be(pokemonStart + 0x26)
+    local defense = read16be(pokemonStart + 0x28)
+    local speed = read16be(pokemonStart + 0x2A)
+    local special = read16be(pokemonStart + 0x2C)
     
     -- Get species name  
     local speciesName = constants.pokemonData.species[speciesId + 1] or "Unknown"
@@ -110,7 +113,7 @@ function Gen2PartyReader:readPokemon(partyAddr, slot, partyNicknamesAddr)
     if partyNicknamesAddr then
         local nicknameAddr = partyNicknamesAddr + (slot * 11) -- Each nickname is 11 bytes
         for i = 0, 10 do
-            local byte = memory.readbyte(nicknameAddr + i)
+            local byte = read8(nicknameAddr + i)
             if byte == 0x50 then -- Gen2 string terminator
                 break
             elseif byte ~= 0 then
@@ -189,8 +192,8 @@ end
 
 function Gen2PartyReader:getDVs(dvsAddr)
     -- Read the 2-byte DV value (same structure as Gen1)
-    local atkDefDVs = memory.readbyte(dvsAddr)
-    local speSpcDVs = memory.readbyte(dvsAddr + 0x1)
+    local atkDefDVs = read8(dvsAddr)
+    local speSpcDVs = read8(dvsAddr + 0x1)
     
     local atkDV = atkDefDVs >> 4
     local defDV = atkDefDVs & 0xF

@@ -27,7 +27,7 @@ function BattleReader:detectStructSize(baseAddr, enemyParty)
             local thirdSlot = gameUtils.read16(baseAddr + 2 * size)
             if thirdSlot == 0 then
                 self.structSize = size
-                console.log("BattleReader: detected gBattleMons struct size = " .. size)
+                console:log("BattleReader: detected gBattleMons struct size = " .. size)
                 return size
             end
             if not bestSize then
@@ -38,7 +38,7 @@ function BattleReader:detectStructSize(baseAddr, enemyParty)
 
     if bestSize then
         self.structSize = bestSize
-        console.log("BattleReader: detected gBattleMons struct size = " .. bestSize .. " (doubles?)")
+        console:log("BattleReader: detected gBattleMons struct size = " .. bestSize .. " (doubles?)")
         return bestSize
     end
 
