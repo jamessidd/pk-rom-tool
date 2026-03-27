@@ -9,6 +9,9 @@ MemoryReader.partyReader = nil
 MemoryReader.playerReader = nil
 MemoryReader.server = nil
 MemoryReader.serverEnabled = true
+MemoryReader.serverPort = 8080
+MemoryReader.serverHost = "localhost"
+MemoryReader.serverAutoNext = false
 MemoryReader.soulLink = nil
 MemoryReader.battleReader = nil
 
@@ -30,6 +33,36 @@ local Server = require("network.server")
 local gamesDB = require("data.gamesdb")
 local SoulLinkState = require("soullink.state")
 local BattleReader = require("readers.battle.battlereader")
+
+local function parseAutoNext(value)
+    if value == true or value == 1 then
+        return true
+    end
+    if type(value) == "string" then
+        local normalized = value:lower()
+        return normalized == "true" or normalized == "1" or normalized == "yes" or normalized == "auto"
+    end
+    return false
+end
+
+local function normalizeServerOptions(port, autoNext, host)
+    local desiredPort = tonumber(port) or MemoryReader.serverPort or 8080
+    local desiredHost = host or MemoryReader.serverHost or "localhost"
+    local shouldAutoNext = autoNext ~= nil and parseAutoNext(autoNext) or MemoryReader.serverAutoNext or false
+    return math.floor(desiredPort), shouldAutoNext, desiredHost
+end
+
+local function tryStartServerOnPort(port, host)
+    local server = Server:new(MemoryReader, port, host)
+    local success, reason, detail = server:start()
+    if success then
+        MemoryReader.server = server
+        MemoryReader.serverPort = port
+        MemoryReader.serverHost = host
+        return true
+    end
+    return false, reason, detail
+end
 
 
 function MemoryReader.initialize()
@@ -161,14 +194,45 @@ function MemoryReader.getPartyData()
     return party
 end
 
-function MemoryReader.startServer()
+function MemoryReader.startServer(port, autoNext, host)
     if MemoryReader.server then
-        console:log("Server is already running!")
+        console:log("Server is already running on http://" .. MemoryReader.serverHost .. ":" .. MemoryReader.serverPort)
         return true
     end
 
-    MemoryReader.server = Server:new(MemoryReader)
-    return MemoryReader.server:start()
+    local desiredPort, shouldAutoNext, desiredHost = normalizeServerOptions(port, autoNext, host)
+    local maxAttempts = shouldAutoNext and 10 or 1
+    MemoryReader.serverPort = desiredPort
+    MemoryReader.serverHost = desiredHost
+    MemoryReader.serverAutoNext = shouldAutoNext
+
+    for offset = 0, maxAttempts - 1 do
+        local tryPort = desiredPort + offset
+        local success, reason, detail = tryStartServerOnPort(tryPort, desiredHost)
+        if success then
+            if offset > 0 then
+                console:log("Requested port " .. desiredPort .. " was unavailable. Using http://" .. desiredHost .. ":" .. tryPort)
+            end
+            return true
+        end
+
+        if reason == "bind_failed" and shouldAutoNext and offset < maxAttempts - 1 then
+            console:log("Port " .. tryPort .. " is already in use. Trying " .. (tryPort + 1) .. "...")
+        elseif reason == "bind_failed" then
+            console:log("Port " .. tryPort .. " is already in use.")
+        elseif reason == "listen_failed" then
+            console:log("Failed to listen on http://" .. desiredHost .. ":" .. tryPort .. " - " .. tostring(detail or "unknown error"))
+        else
+            console:log("Failed to start server on http://" .. desiredHost .. ":" .. tryPort)
+        end
+    end
+
+    if shouldAutoNext then
+        console:log("No open port found in range " .. desiredPort .. "-" .. (desiredPort + maxAttempts - 1))
+    else
+        console:log("Tip: try startServer(" .. (desiredPort + 1) .. ") or startServer(" .. desiredPort .. ", true)")
+    end
+    return false
 end
 
 function MemoryReader.stopServer()
@@ -182,12 +246,12 @@ function MemoryReader.stopServer()
     return success
 end
 
-function MemoryReader.toggleServer()
+function MemoryReader.toggleServer(port, autoNext, host)
     if MemoryReader.server then
         MemoryReader.stopServer()
         console:log("Server disabled")
     else
-        if MemoryReader.startServer() then
+        if MemoryReader.startServer(port, autoNext, host) then
             console:log("Server enabled")
         else
             console:log("Failed to start server")

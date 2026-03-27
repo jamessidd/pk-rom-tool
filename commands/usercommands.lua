@@ -4,6 +4,17 @@ local formatter = require("formatting.formatter")
 local debugTools = require("debug.debugtools")
 local GamesDB = require("data.gamesdb")
 
+local function parseAutoNext(value)
+  if value == true or value == 1 then
+    return true
+  end
+  if type(value) == "string" then
+    local normalized = value:lower()
+    return normalized == "true" or normalized == "1" or normalized == "yes" or normalized == "auto"
+  end
+  return false
+end
+
 -- MARK: Basic Utility
 
 -- Ensures the global MemoryReader has been properly initialized.
@@ -17,23 +28,27 @@ end
 
 -- Prints the available commands forr the user.
 function UserCommands.help()
+  local host = MemoryReader.serverHost or "localhost"
+  local port = MemoryReader.serverPort or 8080
   console:log("=== Pokemon Memory Reader Commands ===")
   console:log("showParty() - Displays the current party information.")
   console:log("showSoulLink() - Displays the current local Soul Link state.")
   console:log("resetSoulLink() - Clears Soul Link state and pending events.")
   console:log("rebaseSoulLink() - Rebuilds Soul Link baseline from the current party.")
   console:log("setSoulLinkPollInterval(frames) - Sets the Soul Link polling interval in frames.")
-  console:log("startServer() - Starts the memory reading server.")
+  console:log("startServer([port], [autoNext], [host]) - Starts the memory reading server.")
   console:log("stopServer() - Stops the memory reading server.")
-  console:log("toggleServer() - Toggles the memory reading server.")
+  console:log("toggleServer([port], [autoNext], [host]) - Toggles the memory reading server.")
+  console:log("setServerPort(port) - Sets the preferred local API port.")
+  console:log("showServer() - Displays the current server configuration.")
   console:log("debugParty() - Displays raw data about the current party.")
   console:log("")
   console:log("API Endpoints (when server running):")
-  console:log("  GET http://localhost:8080/party - Party data in JSON")
-  console:log("  GET http://localhost:8080/soullink/state - Soul Link state in JSON")
-  console:log("  GET http://localhost:8080/soullink/events - Soul Link events in JSON")
-  console:log("  GET http://localhost:8080/status - Server status")
-  console:log("  GET http://localhost:8080/ - API documentation")
+  console:log("  GET http://" .. host .. ":" .. port .. "/party - Party data in JSON")
+  console:log("  GET http://" .. host .. ":" .. port .. "/soullink/state - Soul Link state in JSON")
+  console:log("  GET http://" .. host .. ":" .. port .. "/soullink/events - Soul Link events in JSON")
+  console:log("  GET http://" .. host .. ":" .. port .. "/status - Server status")
+  console:log("  GET http://" .. host .. ":" .. port .. "/ - API documentation")
   console:log("=====================================")
 end
 
@@ -69,9 +84,9 @@ end
 
 -- MARK: Server
 
-function UserCommands.startServer()
+function UserCommands.startServer(port, autoNext, host)
   MemoryReader.serverEnabled = true
-  MemoryReader.startServer()
+  MemoryReader.startServer(port, parseAutoNext(autoNext), host)
 end
 
 function UserCommands.stopServer()
@@ -79,9 +94,37 @@ function UserCommands.stopServer()
   MemoryReader.stopServer()
 end
 
-function UserCommands.toggleServer()
+function UserCommands.toggleServer(port, autoNext, host)
   MemoryReader.serverEnabled = not MemoryReader.serverEnabled
-  MemoryReader.toggleServer()
+  MemoryReader.toggleServer(port, parseAutoNext(autoNext), host)
+end
+
+function UserCommands.setServerPort(port)
+  local numericPort = tonumber(port)
+  if not numericPort or numericPort < 1 or numericPort > 65535 then
+    console:log("Invalid port. Use a number from 1 to 65535.")
+    return
+  end
+
+  MemoryReader.serverPort = math.floor(numericPort)
+  console:log("Preferred server port set to " .. MemoryReader.serverPort)
+  console:log("Use startServer() to bind it, or startServer(" .. MemoryReader.serverPort .. ", true) to try the next open ports.")
+end
+
+function UserCommands.showServer()
+  local host = MemoryReader.serverHost or "localhost"
+  local port = MemoryReader.serverPort or 8080
+  local running = MemoryReader.server ~= nil
+  console:log("Server configuration:")
+  console:log("Host: " .. host)
+  console:log("Preferred port: " .. tostring(port))
+  console:log("Auto-next fallback: " .. tostring(MemoryReader.serverAutoNext or false))
+  console:log("Running: " .. tostring(running))
+  if running then
+    console:log("Bound URL: http://" .. host .. ":" .. port)
+  else
+    console:log("Server is currently stopped.")
+  end
 end
 
 -- MARK: Player

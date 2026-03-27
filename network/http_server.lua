@@ -35,14 +35,14 @@ function HttpServer:start()
 
     self.server = socket.bind(bindAddr, self.port)
     if not self.server then
-        console:log("Failed to bind server to " .. self.host .. ":" .. self.port)
-        return false
+        return false, "bind_failed"
     end
 
     local ok, err = self.server:listen(5)
     if ok and ok ~= 0 then
-        console:log("Failed to listen: " .. tostring(err or ok))
-        return false
+        pcall(function() self.server:close() end)
+        self.server = nil
+        return false, "listen_failed", tostring(err or ok)
     end
 
     self.isRunning = true
