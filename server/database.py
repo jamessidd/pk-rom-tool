@@ -18,6 +18,7 @@ from models import (
     RoomSettings,
     SyncPokemon,
 )
+from room_logic import rebuild_pairs
 
 logger = logging.getLogger("pkrom.sync.db")
 
@@ -110,39 +111,6 @@ async def close():
     if _db:
         await _db.close()
         _db = None
-
-
-def _build_pairs(room: Room) -> None:
-    catch_index: dict[tuple[str, int], CatchRecord] = {}
-    routes_seen: dict[int, str] = {}
-    for catch in room.catches:
-        catch_index[(catch.player_id, catch.personality)] = catch
-        if catch.route not in routes_seen and catch.route_name:
-            routes_seen[catch.route] = catch.route_name
-        player_map = room.route_assignments.setdefault(catch.player_id, {})
-        if catch.route not in player_map:
-            player_map[catch.route] = catch.personality
-
-    room.pairs = []
-    all_routes: set[int] = set()
-    for player_map in room.route_assignments.values():
-        all_routes.update(player_map.keys())
-
-    for route in sorted(all_routes):
-        route_name = routes_seen.get(route, "")
-        player_catches: dict[str, CatchRecord] = {}
-        for player_id, player_map in room.route_assignments.items():
-            personality = player_map.get(route)
-            if personality is None:
-                continue
-            catch = catch_index.get((player_id, personality))
-            if catch:
-                player_catches[player_id] = catch
-                if not route_name and catch.route_name:
-                    route_name = catch.route_name
-        if player_catches:
-            room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches))
-    room.pairs.sort(key=lambda pair: pair.route)
 
 
 def _sync_pokemon_from_dict(data: dict) -> SyncPokemon:
@@ -248,7 +216,7 @@ async def load_all_rooms() -> dict[str, Room]:
             room.events.append(_local_event_from_dict(payload))
 
     for room in rooms.values():
-        _build_pairs(room)
+        rebuild_pairs(room)
 
     logger.info("Loaded %s rooms from database", len(rooms))
     return rooms
@@ -373,7 +341,7 @@ async def save_event(room_code: str, event: LocalEvent):
             event.player_id,
             event.player_name,
             json.dumps(event.model_dump()),
-            datetime.utcnow().isoformat(),
+            datetime.utcfromtimestamp(event.timestamp).isoformat() if event.timestamp else datetime.utcnow().isoformat(),
         ),
     )
     await _db.commit()

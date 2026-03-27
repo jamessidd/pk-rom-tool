@@ -24,8 +24,9 @@ export function setRoomCode(c)   { store('pkrom-room', c); }
 
 async function json(url, opts) {
   const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(`${r.status}`);
-  return r.json();
+  const data = await r.json();
+  if (!r.ok) throw new Error(data?.detail || `${r.status}`);
+  return data;
 }
 
 export async function fetchLocalStatus(base) {

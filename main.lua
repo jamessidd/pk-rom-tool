@@ -195,12 +195,16 @@ function MemoryReader.getPartyData()
 end
 
 function MemoryReader.startServer(port, autoNext, host)
+    local desiredPort, shouldAutoNext, desiredHost = normalizeServerOptions(port, autoNext, host)
     if MemoryReader.server then
-        console:log("Server is already running on http://" .. MemoryReader.serverHost .. ":" .. MemoryReader.serverPort)
-        return true
+        if desiredPort == MemoryReader.serverPort and desiredHost == MemoryReader.serverHost then
+            console:log("Server already running on http://" .. MemoryReader.serverHost .. ":" .. MemoryReader.serverPort)
+            return true
+        end
+        console:log("Switching from port " .. MemoryReader.serverPort .. " to " .. desiredPort .. "...")
+        MemoryReader.stopServer()
     end
 
-    local desiredPort, shouldAutoNext, desiredHost = normalizeServerOptions(port, autoNext, host)
     local maxAttempts = shouldAutoNext and 10 or 1
     MemoryReader.serverPort = desiredPort
     MemoryReader.serverHost = desiredHost

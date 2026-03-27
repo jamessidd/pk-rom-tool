@@ -34,6 +34,7 @@ from models import (
     SyncPokemon,
     generate_room_code,
 )
+from room_logic import ensure_snapshot_catches, find_catch, rebuild_pairs, update_in_party_flags, upsert_catch
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("pkrom.sync")
@@ -109,66 +110,6 @@ def compatibility_for(room: Room, profile: GameProfile) -> CompatibilityResult:
     )
 
 
-def auto_assign_catch(room: Room, catch: CatchRecord):
-    player_map = room.route_assignments.setdefault(catch.player_id, {})
-    if catch.route not in player_map:
-        player_map[catch.route] = catch.personality
-
-
-def _get_player_team(room: Room, player_id: str) -> str:
-    presence = room.players.get(player_id)
-    return (presence.team if presence else "") or ""
-
-
-def auto_pair_catches(room: Room):
-    catch_index: dict[tuple[str, int], CatchRecord] = {}
-    routes_seen: dict[int, str] = {}
-    for catch in room.catches:
-        catch_index[(catch.player_id, catch.personality)] = catch
-        if catch.route not in routes_seen and catch.route_name:
-            routes_seen[catch.route] = catch.route_name
-        auto_assign_catch(room, catch)
-
-    is_race = room.settings.mode == "race"
-
-    if is_race:
-        from collections import defaultdict
-        teams: dict[str, list[str]] = defaultdict(list)
-        for pid in room.players:
-            teams[_get_player_team(room, pid) or "A"].append(pid)
-        team_groups = list(teams.items())
-    else:
-        team_groups = [("", list(room.players.keys()))]
-
-    room.pairs = []
-    for team_label, team_pids in team_groups:
-        team_pid_set = set(team_pids)
-        all_routes: set[int] = set()
-        for pid in team_pids:
-            player_map = room.route_assignments.get(pid, {})
-            all_routes.update(player_map.keys())
-
-        for route in sorted(all_routes):
-            route_name = routes_seen.get(route, "")
-            player_catches: dict[str, CatchRecord] = {}
-            for player_id in team_pids:
-                player_map = room.route_assignments.get(player_id, {})
-                personality = player_map.get(route)
-                if personality is None:
-                    continue
-                catch = catch_index.get((player_id, personality))
-                if catch:
-                    player_catches[player_id] = catch
-                    if not route_name and catch.route_name:
-                        route_name = catch.route_name
-            if player_catches:
-                room.pairs.append(PairGroup(route=route, route_name=route_name, pokemon=player_catches, team=team_label))
-    room.pairs.sort(key=lambda pair: min(
-        (c.timestamp for c in pair.pokemon.values() if hasattr(c, 'timestamp') and c.timestamp),
-        default=datetime(2000, 1, 1)
-    ))
-
-
 def propagate_death(room: Room, dead_personality: int, dead_player_id: str):
     dead_route = None
     for catch in room.catches:
@@ -180,15 +121,15 @@ def propagate_death(room: Room, dead_personality: int, dead_player_id: str):
 
     if dead_route is not None:
         is_race = room.settings.mode == "race"
-        dead_team = _get_player_team(room, dead_player_id) if is_race else None
+        dead_team = room.players.get(dead_player_id).team if is_race and room.players.get(dead_player_id) else None
         for catch in room.catches:
             if catch.route == dead_route:
                 if is_race:
-                    if _get_player_team(room, catch.player_id) == dead_team:
+                    if room.players.get(catch.player_id) and room.players.get(catch.player_id).team == dead_team:
                         catch.alive = False
                 else:
                     catch.alive = False
-    auto_pair_catches(room)
+    rebuild_pairs(room)
     return dead_route
 
 
@@ -234,45 +175,6 @@ def merge_recent_events(room: Room, events: list[LocalEvent]) -> list[LocalEvent
     return accepted
 
 
-def ensure_snapshot_catches(room: Room, snapshot: PlayerSnapshot):
-    known_personalities = {c.personality for c in room.catches if c.player_id == snapshot.player_id}
-    for pokemon in snapshot.current_party:
-        if pokemon.personality in known_personalities:
-            continue
-        inferred = CatchRecord(
-            id=f"reconcile-{snapshot.player_id}-{pokemon.personality}",
-            player_id=snapshot.player_id,
-            player_name=snapshot.player_name,
-            species_id=pokemon.species_id,
-            species_name=pokemon.species_name or pokemon.nickname or f"Pokemon #{pokemon.species_id}",
-            nickname=pokemon.nickname,
-            route=pokemon.met_location,
-            route_name=pokemon.met_location_name,
-            level=pokemon.level,
-            personality=pokemon.personality,
-            met_level=pokemon.met_level,
-            types=pokemon.types,
-            alive=pokemon.current_hp > 0,
-            in_party=True,
-            nature=pokemon.nature,
-            ivs=pokemon.ivs,
-            evs=pokemon.evs,
-            held_item=pokemon.held_item,
-            held_item_id=pokemon.held_item_id,
-            hidden_power=pokemon.hidden_power,
-            friendship=pokemon.friendship,
-            timestamp=datetime.utcnow(),
-        )
-        room.catches.append(inferred)
-
-
-def update_in_party_flags(room: Room, snapshot: PlayerSnapshot):
-    party_personalities = {pokemon.personality for pokemon in snapshot.current_party}
-    for catch in room.catches:
-        if catch.player_id == snapshot.player_id:
-            catch.in_party = catch.personality in party_personalities
-
-
 @app.post("/rooms", response_model=CreateRoomResponse)
 async def create_room(request: CreateRoomRequest = None):
     code = generate_room_code()
@@ -296,9 +198,7 @@ async def create_room(request: CreateRoomRequest = None):
 @app.post("/rooms/{code}/join", response_model=JoinRoomResponse)
 async def join_room(code: str, request: JoinRoomRequest):
     if code not in rooms:
-        room = Room(code=code)
-        rooms[code] = room
-        await db.save_room(room)
+        raise HTTPException(status_code=404, detail=f"Room '{code}' not found")
     room = rooms[code]
 
     compatibility = compatibility_for(room, request.profile)
@@ -339,6 +239,7 @@ async def join_room(code: str, request: JoinRoomRequest):
         room.players[request.player_id] = player
 
     await db.save_player(code, player)
+    rebuild_pairs(room)
     await broadcast_to_room(
         code,
         {
@@ -363,10 +264,9 @@ async def receive_event(code: str, event: LocalEvent):
 
     if event.type in (EventType.CATCH, EventType.GIFT):
         catch = catch_from_sync_event(event)
-        if all(existing.personality != catch.personality for existing in room.catches):
-            room.catches.append(catch)
-            auto_pair_catches(room)
-            await db.save_catch(code, catch)
+        stored_catch, _ = upsert_catch(room, catch)
+        rebuild_pairs(room)
+        await db.save_catch(code, stored_catch)
         logger.info("[%s] %s caught %s on %s", code, event.player_name, catch.species_name, catch.route_name)
         await broadcast_to_room(
             code,
@@ -414,9 +314,8 @@ async def reconcile_room(code: str, request: ReconcileRequest):
     for event in accepted_events:
         if event.type in (EventType.CATCH, EventType.GIFT):
             catch = catch_from_sync_event(event)
-            if all(existing.personality != catch.personality for existing in room.catches):
-                room.catches.append(catch)
-                await db.save_catch(code, catch)
+            stored_catch, _ = upsert_catch(room, catch)
+            await db.save_catch(code, stored_catch)
         elif event.type == EventType.FAINT:
             dead_route = propagate_death(room, event.pokemon.personality, event.player_id)
             if dead_route is not None:
@@ -425,7 +324,7 @@ async def reconcile_room(code: str, request: ReconcileRequest):
 
     ensure_snapshot_catches(room, snapshot)
     update_in_party_flags(room, snapshot)
-    auto_pair_catches(room)
+    rebuild_pairs(room)
 
     for catch in room.catches:
         if catch.player_id != request.player_id:
@@ -469,7 +368,7 @@ async def override_death(code: str, request: OverrideDeathRequest):
             catch.alive = request.alive
             changed = True
     if changed:
-        auto_pair_catches(room)
+        rebuild_pairs(room)
         await db.update_catch_route_status(code, request.route, request.alive)
         for catch in room.catches:
             await db.save_catch(code, catch)
@@ -497,7 +396,7 @@ async def reassign_route(code: str, request: ReassignRequest):
         raise HTTPException(status_code=404, detail="Pokemon not found in player catches")
 
     room.route_assignments.setdefault(request.player_id, {})[request.route] = request.personality
-    auto_pair_catches(room)
+    rebuild_pairs(room)
     await db.save_room(room)
     for c in room.catches:
         await db.save_catch(code, c)
@@ -528,6 +427,7 @@ async def update_team_names(code: str, request: dict):
 @app.get("/rooms/{code}/state", response_model=RoomState)
 async def get_room_state(code: str):
     room = get_room(code)
+    rebuild_pairs(room)
     return RoomState(
         code=room.code,
         required_profile=room.required_profile,
@@ -564,6 +464,7 @@ async def websocket_endpoint(websocket: WebSocket, code: str):
 
     room = rooms.get(code)
     if room:
+        rebuild_pairs(room)
         await websocket.send_text(
             json.dumps(
                 {
