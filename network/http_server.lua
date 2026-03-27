@@ -38,11 +38,12 @@ function HttpServer:start()
         return false, "bind_failed"
     end
 
-    local ok, err = self.server:listen(5)
-    if ok and ok ~= 0 then
+    local listenResult = self.server:listen(5)
+    -- mGBA socket error codes: 0=OK, 1=AGAIN (non-blocking; treat as success), >=2 is a real error
+    if listenResult and listenResult > 1 then
         pcall(function() self.server:close() end)
         self.server = nil
-        return false, "listen_failed", tostring(err or ok)
+        return false, "listen_failed", tostring(listenResult)
     end
 
     self.isRunning = true

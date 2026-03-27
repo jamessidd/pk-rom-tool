@@ -216,15 +216,15 @@ function MemoryReader.startServer(port, autoNext, host)
             return true
         end
 
-        if reason == "bind_failed" and shouldAutoNext and offset < maxAttempts - 1 then
-            console:log("Port " .. tryPort .. " is already in use. Trying " .. (tryPort + 1) .. "...")
-        elseif reason == "bind_failed" then
-            console:log("Port " .. tryPort .. " is already in use.")
+        local canRetry = shouldAutoNext and offset < maxAttempts - 1
+        if reason == "bind_failed" then
+            console:log("Port " .. tryPort .. " in use." .. (canRetry and (" Trying " .. (tryPort + 1) .. "...") or ""))
         elseif reason == "listen_failed" then
-            console:log("Failed to listen on http://" .. desiredHost .. ":" .. tryPort .. " - " .. tostring(detail or "unknown error"))
+            console:log("Listen failed on port " .. tryPort .. " (code " .. tostring(detail or "?") .. ")" .. (canRetry and (" Trying " .. (tryPort + 1) .. "...") or ""))
         else
-            console:log("Failed to start server on http://" .. desiredHost .. ":" .. tryPort)
+            console:log("Failed on port " .. tryPort .. (canRetry and (". Trying " .. (tryPort + 1) .. "...") or ""))
         end
+        if not canRetry and not shouldAutoNext then break end
     end
 
     if shouldAutoNext then
