@@ -6,7 +6,6 @@ export default function useSprite(speciesName) {
 
   useEffect(() => {
     let active = true;
-    setUrl(null);
     resolvePokeApiSprite(speciesName).then((resolved) => {
       if (active) setUrl(resolved);
     });

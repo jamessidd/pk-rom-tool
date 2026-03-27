@@ -28,21 +28,31 @@ export default function EventToasts({ events }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const seenRef = useRef(new Set());
   const panelRef = useRef(null);
+  const processedCountRef = useRef(0);
 
   useEffect(() => {
     if (!events || events.length === 0) return;
 
+    const startIdx = events.length >= processedCountRef.current ? processedCountRef.current : 0;
+    if (startIdx === 0) {
+      seenRef.current = new Set();
+    }
+
     const newToasts = [];
-    for (const ev of events) {
+    for (const ev of events.slice(startIdx)) {
       const id = ev.id || `${ev.type}_${ev.timestamp}`;
       if (!seenRef.current.has(id)) {
         seenRef.current.add(id);
         newToasts.push({ ...ev, _toastId: id, _exitAt: Date.now() + 4000 });
       }
     }
+    processedCountRef.current = events.length;
 
     if (newToasts.length > 0) {
-      setToasts(prev => [...prev, ...newToasts].slice(-3));
+      const timer = setTimeout(() => {
+        setToasts(prev => [...prev, ...newToasts].slice(-3));
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [events]);
 
@@ -72,9 +82,8 @@ export default function EventToasts({ events }) {
       <div className="toast-container">
         {toasts.map(t => {
           const { icon, cls } = toastMeta(t.type);
-          const exiting = t._exitAt - Date.now() < 400;
           return (
-            <div key={t._toastId} className={`toast-item ${cls} ${exiting ? 'toast-exit' : ''}`}>
+            <div key={t._toastId} className={`toast-item ${cls}`}>
               <span className="toast-icon">{icon}</span>
               <span className="toast-text">{toastText(t)}</span>
             </div>

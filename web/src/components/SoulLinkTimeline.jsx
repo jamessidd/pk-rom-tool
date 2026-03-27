@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import useSprite from '../hooks/useSprite';
 import { TYPE_COLORS } from '../utils/types';
 
@@ -37,46 +37,52 @@ function buildTeamProgress(teams, timeline) {
 }
 
 export default function SoulLinkTimeline({ timeline, encounters, gameName, teams, battlesByTeam, myTeam }) {
-  const TEAM_COLORS = myTeam ? getTeamColors(myTeam) : DEFAULT_TEAM_COLORS;
+  const safeTimeline = useMemo(() => timeline || [], [timeline]);
+  const TEAM_COLORS = useMemo(
+    () => (myTeam ? getTeamColors(myTeam) : DEFAULT_TEAM_COLORS),
+    [myTeam]
+  );
   const listRef = useRef(null);
   const prevProgressKey = useRef('');
 
-  if (!timeline || timeline.length === 0) {
-    return (
-      <div className="slt">
-        <div className="slt-header-block">
-          <div className="slt-title">Soul Link Timeline</div>
-        </div>
-        <div className="slt-empty">No timeline data for this game.</div>
-      </div>
-    );
-  }
-
-  const encounterByName = new Map();
-  for (const enc of (encounters || [])) {
-    const name = enc.locationName || enc.route_name || '';
-    if (name && !encounterByName.has(name)) {
-      const mon = enc.pokemon?.[0] || enc;
-      encounterByName.set(name, mon);
+  const encounterByName = useMemo(() => {
+    const map = new Map();
+    for (const enc of (encounters || [])) {
+      const name = enc.locationName || enc.route_name || '';
+      if (name && !map.has(name)) {
+        const mon = enc.pokemon?.[0] || enc;
+        map.set(name, mon);
+      }
     }
-  }
-
+    return map;
+  }, [encounters]);
   const isRace = !!teams;
-  const teamProgress = buildTeamProgress(teams, timeline);
-  const allTeams = teamProgress ? Object.keys(teamProgress).sort() : [];
+  const teamProgress = useMemo(
+    () => buildTeamProgress(teams, safeTimeline),
+    [teams, safeTimeline]
+  );
+  const allTeams = useMemo(
+    () => (teamProgress ? Object.keys(teamProgress).sort() : []),
+    [teamProgress]
+  );
 
-  const lastEncIdx = (() => {
+  const lastEncIdx = useMemo(() => {
     let last = -1;
-    for (let i = 0; i < timeline.length; i++) {
-      if (timeline[i].type === 'route' && encounterByName.has(timeline[i].name)) last = i;
+    for (let i = 0; i < safeTimeline.length; i++) {
+      if (safeTimeline[i].type === 'route' && encounterByName.has(safeTimeline[i].name)) last = i;
     }
     return last;
-  })();
-  const progressKey = isRace
-    ? allTeams.map(t => `${t}:${teamProgress[t] ?? -1}`).join(',')
-    : `solo:${lastEncIdx}`;
+  }, [safeTimeline, encounterByName]);
+
+  const progressKey = useMemo(
+    () => (isRace
+      ? allTeams.map(t => `${t}:${teamProgress[t] ?? -1}`).join(',')
+      : `solo:${lastEncIdx}`),
+    [isRace, allTeams, teamProgress, lastEncIdx]
+  );
+
   useEffect(() => {
-    if (!listRef.current || progressKey === prevProgressKey.current) return;
+    if (!safeTimeline.length || !listRef.current || progressKey === prevProgressKey.current) return;
     prevProgressKey.current = progressKey;
     requestAnimationFrame(() => {
       let targetRow;
@@ -97,23 +103,37 @@ export default function SoulLinkTimeline({ timeline, encounters, gameName, teams
         container.scrollTo({ top: Math.max(0, scrollTo), behavior: 'smooth' });
       }
     });
-  }, [progressKey]);
-  const teamBattleIdx = {};
-  if (battlesByTeam && teamProgress) {
+  }, [progressKey, isRace, safeTimeline.length]);
+
+  const teamBattleIdx = useMemo(() => {
+    const next = {};
+    if (!battlesByTeam || !teamProgress) return next;
     for (const team of Object.keys(battlesByTeam)) {
       const lastRoute = teamProgress[team];
       if (lastRoute !== undefined) {
-        for (let i = lastRoute + 1; i < timeline.length; i++) {
-          if (timeline[i].type === 'boss' || timeline[i].type === 'rival') {
-            teamBattleIdx[team] = i;
+        for (let i = lastRoute + 1; i < safeTimeline.length; i++) {
+          if (safeTimeline[i].type === 'boss' || safeTimeline[i].type === 'rival') {
+            next[team] = i;
             break;
           }
         }
-        if (teamBattleIdx[team] === undefined) {
-          teamBattleIdx[team] = lastRoute;
+        if (next[team] === undefined) {
+          next[team] = lastRoute;
         }
       }
     }
+    return next;
+  }, [battlesByTeam, teamProgress, safeTimeline]);
+
+  if (!safeTimeline.length) {
+    return (
+      <div className="slt">
+        <div className="slt-header-block">
+          <div className="slt-title">Soul Link Timeline</div>
+        </div>
+        <div className="slt-empty">No timeline data for this game.</div>
+      </div>
+    );
   }
 
   return (
@@ -132,7 +152,7 @@ export default function SoulLinkTimeline({ timeline, encounters, gameName, teams
         )}
       </div>
       <div className="slt-list" ref={listRef}>
-        {timeline.map((entry, i) => {
+        {safeTimeline.map((entry, i) => {
           const teamMarkersHere = allTeams.filter(t => teamProgress[t] === i);
           const teamLineState = {};
           for (const t of allTeams) {
@@ -231,7 +251,7 @@ function TeamProgressLines({ teamLineState, allTeams, markers, teamColors }) {
   );
 }
 
-function RouteRow({ entry, mon, teamMarkers, teamLineState, allTeams, isBattleHighlight, isRace, teamColors, passed }) {
+const RouteRow = memo(function RouteRow({ entry, mon, teamMarkers, teamLineState, allTeams, isBattleHighlight, isRace, teamColors, passed }) {
   return (
     <div className={`slt-route ${mon ? '' : 'slt-route-empty'} ${isBattleHighlight ? 'slt-battle-active' : ''} ${passed ? 'slt-passed' : ''}`}>
       {isRace && <TeamProgressLines teamLineState={teamLineState} allTeams={allTeams} markers={teamMarkers} teamColors={teamColors} />}
@@ -243,9 +263,9 @@ function RouteRow({ entry, mon, teamMarkers, teamLineState, allTeams, isBattleHi
       </div>
     </div>
   );
-}
+});
 
-function EncounterPreview({ mon }) {
+const EncounterPreview = memo(function EncounterPreview({ mon }) {
   const species = mon.species_name || mon.species || '';
   const nickname = mon.nickname || species || '???';
   const img = useSprite(species);
@@ -265,9 +285,9 @@ function EncounterPreview({ mon }) {
       {!alive && <span className="slt-enc-tag-dead">Fallen</span>}
     </div>
   );
-}
+});
 
-function BossRow({ entry, teamMarkers, teamLineState, allTeams, isBattleHighlight, isRace, teamColors, passed }) {
+const BossRow = memo(function BossRow({ entry, teamMarkers, teamLineState, allTeams, isBattleHighlight, isRace, teamColors, passed }) {
   const color = entry.specialty ? (TYPE_COLORS[capitalize(entry.specialty)] || '#666') : 'var(--accent)';
 
   return (
@@ -287,9 +307,9 @@ function BossRow({ entry, teamMarkers, teamLineState, allTeams, isBattleHighligh
       </div>
     </div>
   );
-}
+});
 
-function RivalRow({ entry, teamMarkers, teamLineState, allTeams, isBattleHighlight, isRace, teamColors, passed }) {
+const RivalRow = memo(function RivalRow({ entry, teamMarkers, teamLineState, allTeams, isBattleHighlight, isRace, teamColors, passed }) {
   return (
     <div className={`slt-rival ${isBattleHighlight ? 'slt-battle-active' : ''} ${passed ? 'slt-passed' : ''}`}>
       {isRace && <TeamProgressLines teamLineState={teamLineState} allTeams={allTeams} markers={teamMarkers} teamColors={teamColors} />}
@@ -300,7 +320,7 @@ function RivalRow({ entry, teamMarkers, teamLineState, allTeams, isBattleHighlig
       </div>
     </div>
   );
-}
+});
 
 function capitalize(s) {
   if (!s) return '';

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import useSprite from '../hooks/useSprite';
 import { getProgression, sortRoutesWithDividers } from '../data/routeProgression';
 
@@ -17,15 +17,15 @@ function getMonStatus(mon) {
   return 'box';
 }
 
-function SpriteCell({ species }) {
+const SpriteCell = memo(function SpriteCell({ species }) {
   const img = useSprite(species);
   if (!species) return <div className="et-mini-sprite-fb">--</div>;
   return img
     ? <img className="et-mini-sprite" src={img} alt={species} title={species} loading="lazy" />
     : <div className="et-mini-sprite-fb">?</div>;
-}
+});
 
-function StatusDot({ status }) {
+const StatusDot = memo(function StatusDot({ status }) {
   if (!status) return null;
   const cfg = STATUS_CONFIG[status];
   if (!cfg) return null;
@@ -35,37 +35,38 @@ function StatusDot({ status }) {
       {cfg.label}
     </span>
   );
-}
+});
 
 export default function RouteLinkList({ links, players }) {
   const [search, setSearch] = useState('');
   const bodyRef = useRef(null);
+  const safeLinks = useMemo(() => links || [], [links]);
+  const safePlayers = useMemo(() => players || [], [players]);
+  const pids = useMemo(() => safePlayers.map(p => p.player_id || p), [safePlayers]);
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return safeLinks;
+    return safeLinks.filter(link => {
+      const routeMatch = (link.routeName || '').toLowerCase().includes(query);
+      const monMatch = pids.some(pid => {
+        const mon = link.pokemon?.[pid];
+        if (!mon) return false;
+        const sp = (mon.species_name || mon.species || '').toLowerCase();
+        const nn = (mon.nickname || '').toLowerCase();
+        return sp.includes(query) || nn.includes(query);
+      });
+      return routeMatch || monMatch;
+    });
+  }, [safeLinks, pids, search]);
 
-  const count = links?.length || 0;
+  const count = safeLinks.length;
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
   }, [count]);
 
-  if (!links || links.length === 0) return null;
-
-  const pids = (players || []).map(p => p.player_id || p);
-
-  const filtered = search.trim()
-    ? links.filter(link => {
-        const q = search.toLowerCase();
-        const routeMatch = (link.routeName || '').toLowerCase().includes(q);
-        const monMatch = pids.some(pid => {
-          const mon = link.pokemon?.[pid];
-          if (!mon) return false;
-          const sp = (mon.species_name || mon.species || '').toLowerCase();
-          const nn = (mon.nickname || '').toLowerCase();
-          return sp.includes(q) || nn.includes(q);
-        });
-        return routeMatch || monMatch;
-      })
-    : links;
+  if (safeLinks.length === 0) return null;
 
   return (
     <div className="et-wrap">
@@ -90,7 +91,7 @@ export default function RouteLinkList({ links, players }) {
 
         <div className="et-head-row">
           <div className="et-col et-col-origin et-hdr">Origin</div>
-          {(players || []).map(p => (
+          {safePlayers.map(p => (
             <div key={p.player_id || p} className="et-col et-col-player et-hdr">
               {p.player_name || p}
             </div>
@@ -138,10 +139,11 @@ export default function RouteLinkList({ links, players }) {
 }
 
 export function SoloRouteLinkList({ routes, gameName }) {
-  if (!routes || routes.length === 0) return null;
+  const safeRoutes = useMemo(() => routes || [], [routes]);
+  const progression = useMemo(() => getProgression(gameName), [gameName]);
+  const items = useMemo(() => sortRoutesWithDividers(safeRoutes, progression), [safeRoutes, progression]);
 
-  const progression = getProgression(gameName);
-  const items = sortRoutesWithDividers(routes, progression);
+  if (safeRoutes.length === 0) return null;
 
   let rowIdx = 0;
 

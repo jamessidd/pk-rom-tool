@@ -1,11 +1,18 @@
+import { useMemo } from 'react';
+
 export default function EventFeed({ events }) {
+  const recentEvents = useMemo(
+    () => (events || []).slice().reverse().slice(0, 40),
+    [events]
+  );
+
   if (!events || events.length === 0) {
     return <div className="feed-empty">No events yet.</div>;
   }
 
   return (
     <div className="feed">
-      {events.slice().reverse().slice(0, 40).map((ev, i) => (
+      {recentEvents.map((ev, i) => (
         <FeedItem key={ev.id || i} event={ev} />
       ))}
     </div>

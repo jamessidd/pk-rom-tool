@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import StatusBar from './components/StatusBar';
 import SettingsModal from './components/SettingsModal';
 import PartyGrid from './components/PartyGrid';
@@ -71,11 +71,37 @@ function buildRoomRouteMap(pairs) {
   return map;
 }
 
+function buildSoloRouteByPersonality(routes) {
+  const map = new Map();
+  for (const route of routes) {
+    const name = route.locationName || route.route_name || '';
+    for (const mon of (route.pokemon || [])) {
+      if (mon.personality) map.set(mon.personality, name);
+    }
+  }
+  return map;
+}
+
+function buildRoomPairMapByPlayer(pairs) {
+  const byPlayer = new Map();
+  for (const pair of pairs) {
+    for (const [playerId, mon] of Object.entries(pair.pokemon || {})) {
+      let playerMons = byPlayer.get(playerId);
+      if (!playerMons) {
+        playerMons = new Map();
+        byPlayer.set(playerId, playerMons);
+      }
+      if (mon?.personality) playerMons.set(mon.personality, mon);
+    }
+  }
+  return byPlayer;
+}
+
 export default function App() {
   const [playerName, setPlayerName] = useState(getPlayerName());
   const [localUrl, setLocalUrl]     = useState(getLocalUrl());
   const [syncUrl, setSyncUrl]       = useState(getSyncUrl());
-  const [soloAssignments, _setSoloAssignments] = useState({});
+  const [soloAssignmentsCache, setSoloAssignmentsCache] = useState({});
   const [routeManagerOpen, setRouteManagerOpen] = useState(false);
   const [focusRoute, setFocusRoute] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -88,10 +114,25 @@ export default function App() {
 
   const localPlayerId = getPlayerId();
 
-  function handleNameChange(n)     { setPlayerName(n); saveName(n); }
-  function handleLocalChange(u)    { setLocalUrl(u);   saveLocal(u); }
-  function handleSyncChange(u)     { setSyncUrl(u);    saveSync(u); }
-  function handleSpriteChange(id)  { setTrainerSpriteId(id); saveTrainerSprite(id); }
+  const handleNameChange = useCallback((n) => {
+    setPlayerName(n);
+    saveName(n);
+  }, []);
+
+  const handleLocalChange = useCallback((u) => {
+    setLocalUrl(u);
+    saveLocal(u);
+  }, []);
+
+  const handleSyncChange = useCallback((u) => {
+    setSyncUrl(u);
+    saveSync(u);
+  }, []);
+
+  const handleSpriteChange = useCallback((id) => {
+    setTrainerSpriteId(id);
+    saveTrainerSprite(id);
+  }, []);
 
   const resolvedTrainerName = trainerInfo?.name || playerName || 'You';
   const trainerSpriteUrl = getTrainerSpriteUrl(trainerSpriteId);
@@ -101,19 +142,23 @@ export default function App() {
     ? `${status.game.name || 'unknown'}:${status.game.profileId}`
     : '';
 
-  useEffect(() => {
-    if (soloGameKey) {
-      _setSoloAssignments(getSoloAssignments(soloGameKey));
-    }
-  }, [soloGameKey]);
+  const storedSoloAssignments = useMemo(
+    () => (soloGameKey ? getSoloAssignments(soloGameKey) : {}),
+    [soloGameKey]
+  );
+
+  const soloAssignments = soloAssignmentsCache[soloGameKey] || storedSoloAssignments;
 
   const updateSoloAssignments = useCallback((newAssignments) => {
-    _setSoloAssignments(newAssignments);
+    setSoloAssignmentsCache((prev) => ({
+      ...prev,
+      [soloGameKey]: newAssignments,
+    }));
     setSoloAssignments(newAssignments, soloGameKey);
   }, [soloGameKey]);
 
-  const soloRoutes = soulLink?.routes || [];
-  const soloEvents = soulLink?.recentEvents || [];
+  const soloRoutes = useMemo(() => soulLink?.routes || [], [soulLink?.routes]);
+  const soloEvents = useMemo(() => soulLink?.recentEvents || [], [soulLink?.recentEvents]);
   const inBattle = enemyParty.length > 0;
 
   const prevInBattleRef = useRef(false);
@@ -125,6 +170,8 @@ export default function App() {
 
     if (inBattle && !wasInBattle) {
       const lead = enemyParty[0];
+      // This local transition list is intentionally derived from battle state changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBattleEvents(prev => [...prev, {
         id: `battle_start_${Date.now()}`,
         type: 'battle_start',
@@ -138,107 +185,154 @@ export default function App() {
         timestamp: Date.now(),
       }]);
     }
-  }, [inBattle]);
+  }, [inBattle, enemyParty]);
 
-  const roomPairs  = room.roomState?.pairs || [];
-  const roomEvents = room.roomState?.events || [];
-  const roomPlayers = room.roomState?.players || [];
-  const roomCatches = room.roomState?.catches || [];
+  const roomPairs = useMemo(() => room.roomState?.pairs || [], [room.roomState?.pairs]);
+  const roomEvents = useMemo(() => room.roomState?.events || [], [room.roomState?.events]);
+  const roomPlayers = useMemo(() => room.roomState?.players || [], [room.roomState?.players]);
+  const roomCatches = useMemo(() => room.roomState?.catches || [], [room.roomState?.catches]);
 
-  const localPartyByPersonality = new Map((localParty || []).map(mon => [mon.personality, mon]));
-  const snapshotByPlayer = new Map(
-    Object.entries(room.roomState?.player_snapshots || {}).map(([playerId, snapshot]) => [
-      playerId,
-      new Map((snapshot.current_party || []).map(mon => [mon.personality, mon])),
-    ])
+  const localPartyByPersonality = useMemo(
+    () => new Map((localParty || []).map(mon => [mon.personality, mon])),
+    [localParty]
   );
 
-  const enrichedSoloRoutes = soloRoutes.map(route => ({
-    ...route,
-    pokemon: (route.pokemon || []).map(mon =>
-      mergeLocalDetails(mon, localPartyByPersonality.get(mon.personality), route.locationName)
+  const snapshotByPlayer = useMemo(
+    () => new Map(
+      Object.entries(room.roomState?.player_snapshots || {}).map(([playerId, snapshot]) => [
+        playerId,
+        new Map((snapshot.current_party || []).map(mon => [mon.personality, mon])),
+      ])
     ),
-  }));
+    [room.roomState?.player_snapshots]
+  );
 
-  const filteredSoloRoutes = applySoloFirstCatch(enrichedSoloRoutes, soloAssignments);
-  const allSoloCatches = enrichedSoloRoutes.flatMap(r => r.pokemon || []);
+  const enrichedSoloRoutes = useMemo(() => (
+    soloRoutes.map(route => ({
+      ...route,
+      pokemon: (route.pokemon || []).map(mon =>
+        mergeLocalDetails(mon, localPartyByPersonality.get(mon.personality), route.locationName)
+      ),
+    }))
+  ), [soloRoutes, localPartyByPersonality]);
 
-  const enrichedLocalParty = (localParty || []).map(mon => {
-    const routeInfo = enrichedSoloRoutes.find(r =>
-      (r.pokemon || []).some(p => p.personality === mon.personality)
-    );
-    return mergeLocalDetails(mon, {}, routeInfo?.locationName || '');
-  });
+  const filteredSoloRoutes = useMemo(
+    () => applySoloFirstCatch(enrichedSoloRoutes, soloAssignments),
+    [enrichedSoloRoutes, soloAssignments]
+  );
 
-  const soloRouteMap = buildRouteMap(filteredSoloRoutes);
+  const allSoloCatches = useMemo(
+    () => enrichedSoloRoutes.flatMap(r => r.pokemon || []),
+    [enrichedSoloRoutes]
+  );
 
-  const enrichedRoomPairs = roomPairs.map(pair => {
-    const mergedPokemon = {};
-    Object.entries(pair.pokemon || {}).forEach(([playerId, mon]) => {
-      const snapMap = snapshotByPlayer.get(playerId);
-      const snapMon = snapMap?.get(mon.personality);
-      mergedPokemon[playerId] = {
-        ...mon,
-        ...snapMon,
-        route_name: pair.route_name,
-        routeName: pair.route_name,
-        met_location_name: snapMon?.met_location_name || pair.route_name,
-      };
-    });
-    return { ...pair, pokemon: mergedPokemon };
-  });
+  const soloRouteByPersonality = useMemo(
+    () => buildSoloRouteByPersonality(enrichedSoloRoutes),
+    [enrichedSoloRoutes]
+  );
 
-  const roomRouteMap = buildRoomRouteMap(enrichedRoomPairs);
+  const enrichedLocalParty = useMemo(
+    () => (localParty || []).map(mon =>
+      mergeLocalDetails(mon, {}, soloRouteByPersonality.get(mon.personality) || '')
+    ),
+    [localParty, soloRouteByPersonality]
+  );
+
+  const soloRouteMap = useMemo(
+    () => buildRouteMap(filteredSoloRoutes),
+    [filteredSoloRoutes]
+  );
+
+  const enrichedRoomPairs = useMemo(() => (
+    roomPairs.map(pair => {
+      const mergedPokemon = {};
+      Object.entries(pair.pokemon || {}).forEach(([playerId, mon]) => {
+        const snapMap = snapshotByPlayer.get(playerId);
+        const snapMon = snapMap?.get(mon.personality);
+        mergedPokemon[playerId] = {
+          ...mon,
+          ...snapMon,
+          route_name: pair.route_name,
+          routeName: pair.route_name,
+          met_location_name: snapMon?.met_location_name || pair.route_name,
+        };
+      });
+      return { ...pair, pokemon: mergedPokemon };
+    })
+  ), [roomPairs, snapshotByPlayer]);
+
+  const roomRouteMap = useMemo(
+    () => buildRoomRouteMap(enrichedRoomPairs),
+    [enrichedRoomPairs]
+  );
+
+  const roomPairMapByPlayer = useMemo(
+    () => buildRoomPairMapByPlayer(enrichedRoomPairs),
+    [enrichedRoomPairs]
+  );
+
   const isRoom = room.mode === 'room' && room.roomState;
 
-  const trainerParties = isRoom
-    ? roomPlayers.map(p => {
-        const isLocal = p.player_id === localPlayerId;
-        const snap = room.roomState?.player_snapshots?.[p.player_id];
-        const baseParty = isLocal ? enrichedLocalParty : (snap?.current_party || []);
-        const party = baseParty.map(mon => {
-          const pairMon = enrichedRoomPairs.flatMap(pair =>
-            Object.entries(pair.pokemon || {})
-              .filter(([pid]) => pid === p.player_id)
-              .map(([, m]) => m)
-          ).find(m => m.personality === mon.personality);
-          return { ...mon, ...pairMon };
-        });
-        const playerSprite = snap?.trainer_sprite_id
-          ? getTrainerSpriteUrl(snap.trainer_sprite_id)
-          : (isLocal ? trainerSpriteUrl : null);
-        return {
-          name: p.player_name,
-          playerId: p.player_id,
-          party,
-          spriteUrl: playerSprite,
-          money: snap?.money,
-          coins: snap?.coins,
-        };
-      })
-    : [{
-        name: resolvedTrainerName,
-        playerId: localPlayerId,
-        party: enrichedLocalParty,
-        spriteUrl: trainerSpriteUrl,
-        money: trainerInfo?.money,
-        coins: trainerInfo?.coins,
-      }];
+  const trainerParties = useMemo(() => (
+    isRoom
+      ? roomPlayers.map(p => {
+          const isLocal = p.player_id === localPlayerId;
+          const snap = room.roomState?.player_snapshots?.[p.player_id];
+          const baseParty = isLocal ? enrichedLocalParty : (snap?.current_party || []);
+          const pairMons = roomPairMapByPlayer.get(p.player_id);
+          const party = baseParty.map(mon => ({
+            ...mon,
+            ...(pairMons?.get(mon.personality) || {}),
+          }));
+          const playerSprite = snap?.trainer_sprite_id
+            ? getTrainerSpriteUrl(snap.trainer_sprite_id)
+            : (isLocal ? trainerSpriteUrl : null);
+          return {
+            name: p.player_name,
+            playerId: p.player_id,
+            party,
+            spriteUrl: playerSprite,
+            money: snap?.money,
+            coins: snap?.coins,
+          };
+        })
+      : [{
+          name: resolvedTrainerName,
+          playerId: localPlayerId,
+          party: enrichedLocalParty,
+          spriteUrl: trainerSpriteUrl,
+          money: trainerInfo?.money,
+          coins: trainerInfo?.coins,
+        }]
+  ), [
+    isRoom,
+    roomPlayers,
+    room.roomState?.player_snapshots,
+    localPlayerId,
+    enrichedLocalParty,
+    roomPairMapByPlayer,
+    trainerSpriteUrl,
+    resolvedTrainerName,
+    trainerInfo?.money,
+    trainerInfo?.coins,
+  ]);
 
-  const roomLinks = enrichedRoomPairs.map(pair => ({
-    route: pair.route,
-    routeName: pair.route_name,
-    pokemon: pair.pokemon,
-    team: pair.team || '',
-    anyDead: Object.values(pair.pokemon || {}).some(m => m.alive === false),
-  }));
+  const roomLinks = useMemo(() => (
+    enrichedRoomPairs.map(pair => ({
+      route: pair.route,
+      routeName: pair.route_name,
+      pokemon: pair.pokemon,
+      team: pair.team || '',
+      anyDead: Object.values(pair.pokemon || {}).some(m => m.alive === false),
+    }))
+  ), [enrichedRoomPairs]);
 
   const roomMode = room.roomState?.settings?.mode || 'soullink';
 
   const mockPlayerCount = getMockPlayerCount();
-  const mockDataRef = useRef(null);
-  if (mockPlayerCount > 0 && !mockDataRef.current) {
-    mockDataRef.current = generateMockData({
+  const mockData = useMemo(() => {
+    if (mockPlayerCount <= 0) return null;
+    return generateMockData({
       name: resolvedTrainerName,
       playerId: localPlayerId,
       party: enrichedLocalParty,
@@ -246,8 +340,15 @@ export default function App() {
       money: trainerInfo?.money || 0,
       coins: trainerInfo?.coins || 0,
     });
-  }
-  const mockData = mockDataRef.current;
+  }, [
+    mockPlayerCount,
+    resolvedTrainerName,
+    localPlayerId,
+    enrichedLocalParty,
+    trainerSpriteUrl,
+    trainerInfo?.money,
+    trainerInfo?.coins,
+  ]);
 
   const isMockMode = mockData !== null;
   const isRaceMode = isMockMode ? !!mockData.raceMode : roomMode === 'race';
@@ -259,7 +360,13 @@ export default function App() {
     : (room.roomState?.settings?.team_names || {});
   const getTeamName = (key) => teamNames[key] || `Team ${key}`;
 
-  let finalTrainerParties, finalRoomLinks, finalRoomPlayers, finalRoomEvents, finalRouteMap;
+  const timeline = useMemo(() => getTimeline(gameName), [gameName]);
+  const mergedEvents = useMemo(
+    () => [...soloEvents, ...roomEvents, ...battleEvents],
+    [soloEvents, roomEvents, battleEvents]
+  );
+
+  let finalTrainerParties, finalRoomLinks, finalRoomPlayers, finalRouteMap;
   if (isMockMode) {
     const localEntry = {
       name: resolvedTrainerName,
@@ -272,13 +379,11 @@ export default function App() {
     finalTrainerParties = [localEntry, ...mockData.trainerParties.slice(1)];
     finalRoomLinks = mockData.roomLinks;
     finalRoomPlayers = mockData.roomPlayers;
-    finalRoomEvents = mockData.roomEvents;
     finalRouteMap = buildRoomRouteMap(mockData.roomPairs);
   } else {
     finalTrainerParties = trainerParties;
     finalRoomLinks = roomLinks;
     finalRoomPlayers = roomPlayers;
-    finalRoomEvents = roomEvents;
     finalRouteMap = roomRouteMap;
   }
 
@@ -343,7 +448,6 @@ export default function App() {
       <main className="main-area" style={!localOk && !isMockMode ? { display: 'none' } : undefined}>
 
         {localOk && isSolo && (() => {
-          const timeline = getTimeline(gameName);
           const soloLeadOpponent = enemyParty?.[0]?.types || [];
           const soloLeadPlayerTypes = trainerParties[0]?.party?.[0]?.types || [];
           return (
@@ -369,7 +473,6 @@ export default function App() {
         })()}
 
         {(localOk || isMockMode) && isMulti && (() => {
-          const timeline = getTimeline(gameName);
           const localTrainer = finalTrainerParties.find(t => t.playerId === localPlayerId) || finalTrainerParties[0];
           const otherTrainers = finalTrainerParties.filter(t => t.playerId !== localPlayerId);
           const leadOpponentTypes = enemyParty?.[0]?.types || [];
@@ -492,7 +595,6 @@ export default function App() {
         {localOk && isRoom && !isMulti && !isMockMode && (() => {
           const soloLeadOpponentTypes = enemyParty?.[0]?.types || [];
           const soloLeadPlayerTypes = trainerParties[0]?.party?.[0]?.types || [];
-          const timeline = getTimeline(gameName);
           return (
             <div className={`layout-main${inBattle ? ' lm-battle' : ''}`}>
               <section className="col-party">
@@ -547,7 +649,7 @@ export default function App() {
         />
       )}
 
-      <EventToasts events={[...soloEvents, ...roomEvents, ...battleEvents]} />
+      <EventToasts events={mergedEvents} />
 
       <DebugTicker
         localConnected={localOk}

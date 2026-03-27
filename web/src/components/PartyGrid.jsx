@@ -1,7 +1,7 @@
 import { useRef, useLayoutEffect, useCallback } from 'react';
 import PartyCard, { EmptySlot } from './PartyCard';
 
-export default function PartyGrid({ trainerName, party, routeMap, trainerSprite, inBattle, opponentTypes }) {
+export default function PartyGrid({ trainerName, party, routeMap, inBattle, opponentTypes }) {
   const slots = [];
   for (let i = 0; i < 6; i++) {
     slots.push(party[i] || null);
@@ -60,7 +60,7 @@ export default function PartyGrid({ trainerName, party, routeMap, trainerSprite,
       nextRects.set(personality, node.getBoundingClientRect());
     });
     prevRectsRef.current = nextRects;
-  });
+  }, [currentOrder]);
 
   return (
     <div className="pg pg-group">

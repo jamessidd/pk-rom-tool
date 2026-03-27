@@ -1,4 +1,5 @@
-import { useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useMemo, useState } from 'react';
 
 const SHOWDOWN_BASE = 'https://play.pokemonshowdown.com/sprites/trainers';
 
@@ -102,9 +103,11 @@ export function getTrainerSpriteUrl(id) {
 
 export default function TrainerSpritePicker({ selected, onSelect, onClose }) {
   const [search, setSearch] = useState('');
-  const filtered = search
-    ? TRAINER_SPRITES.filter(s => s.label.toLowerCase().includes(search.toLowerCase()))
-    : TRAINER_SPRITES;
+  const filtered = useMemo(() => (
+    search
+      ? TRAINER_SPRITES.filter(s => s.label.toLowerCase().includes(search.toLowerCase()))
+      : TRAINER_SPRITES
+  ), [search]);
 
   return (
     <div className="tsp-backdrop" onClick={onClose}>
@@ -135,7 +138,14 @@ export default function TrainerSpritePicker({ selected, onSelect, onClose }) {
               onClick={() => { onSelect(s.id); onClose(); }}
               title={s.label}
             >
-              <img src={s.url} alt={s.label} className="tsp-img" onError={e => { e.currentTarget.style.display = 'none'; }} />
+              <img
+                src={s.url}
+                alt={s.label}
+                className="tsp-img"
+                loading="lazy"
+                decoding="async"
+                onError={e => { e.currentTarget.style.display = 'none'; }}
+              />
               <span className="tsp-label">{s.label}</span>
             </button>
           ))}

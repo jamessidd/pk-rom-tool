@@ -75,18 +75,48 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
   const wsRef      = useRef(null);
   const sentIds    = useRef(new Set());
   const syncTimer  = useRef(null);
+  const refreshInFlightRef = useRef(null);
+  const refreshQueuedCodeRef = useRef(null);
+  const refreshTimerRef = useRef(null);
   const playerId   = getPlayerId();
 
   const refreshRoom = useCallback(async (code) => {
     if (!code || !syncUrl) return;
-    try {
-      const state = await fetchRoomState(syncUrl, code);
-      setRoomState(state);
-      setSyncConn(true);
-    } catch {
-      setSyncConn(false);
+    if (refreshInFlightRef.current) {
+      refreshQueuedCodeRef.current = code;
+      return refreshInFlightRef.current;
     }
+
+    const request = (async () => {
+      try {
+        const state = await fetchRoomState(syncUrl, code);
+        setRoomState(state);
+        setSyncConn(true);
+      } catch {
+        setSyncConn(false);
+      } finally {
+        refreshInFlightRef.current = null;
+        if (refreshQueuedCodeRef.current && refreshQueuedCodeRef.current !== code) {
+          const queuedCode = refreshQueuedCodeRef.current;
+          refreshQueuedCodeRef.current = null;
+          refreshRoom(queuedCode);
+        } else {
+          refreshQueuedCodeRef.current = null;
+        }
+      }
+    })();
+
+    refreshInFlightRef.current = request;
+    return request;
   }, [syncUrl]);
+
+  const scheduleRefreshRoom = useCallback((code, delay = 120) => {
+    if (!code || !syncUrl) return;
+    clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshRoom(code);
+    }, delay);
+  }, [syncUrl, refreshRoom]);
 
   const connectWs = useCallback((code) => {
     if (wsRef.current) wsRef.current.close();
@@ -95,9 +125,9 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     ws.onopen  = () => setSyncConn(true);
     ws.onclose = () => setSyncConn(false);
     ws.onerror = () => setSyncConn(false);
-    ws.onmessage = () => refreshRoom(code);
+    ws.onmessage = () => scheduleRefreshRoom(code);
     wsRef.current = ws;
-  }, [syncUrl, refreshRoom]);
+  }, [syncUrl, scheduleRefreshRoom]);
 
   const syncOnce = useCallback(async (code) => {
     if (!code || !syncUrl || !localSoul) return;
@@ -130,9 +160,9 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
         recent_events: newEvents,
       });
       newEvents.forEach(ev => sentIds.current.add(ev.id));
-      await refreshRoom(code);
+      scheduleRefreshRoom(code);
     } catch { /* will retry next cycle */ }
-  }, [syncUrl, localSoul, localParty, enemyParty, playerId, playerName, refreshRoom]);
+  }, [syncUrl, localSoul, localParty, enemyParty, playerId, playerName, scheduleRefreshRoom]);
 
   const create = useCallback(async (roomMode, maxPlayers, teamNames) => {
     if (!localStatus?.game?.initialized) { setError('Local game not detected.'); return; }
@@ -142,6 +172,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     sentIds.current.clear();
     if (wsRef.current) wsRef.current.close();
     if (syncTimer.current) clearInterval(syncTimer.current);
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     try {
       const { code } = await apiCreateRoom(syncUrl, roomMode, maxPlayers, teamNames);
       setRoomCode(code);
@@ -154,7 +185,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
       startSync(code);
       await refreshRoom(code);
     } catch (e) { setError(e.message); }
-  }, [syncUrl, playerName, playerId, localStatus, connectWs, refreshRoom]);
+  }, [syncUrl, playerName, playerId, localStatus, connectWs, refreshRoom, startSync]);
 
   const join = useCallback(async (code, team) => {
     if (!code) { setError('Enter a room code.'); return; }
@@ -165,6 +196,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     sentIds.current.clear();
     if (wsRef.current) wsRef.current.close();
     if (syncTimer.current) clearInterval(syncTimer.current);
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     const upper = code.toUpperCase();
     setRoomCode(upper);
     try {
@@ -176,12 +208,12 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
       startSync(upper);
       await refreshRoom(upper);
     } catch (e) { setError(e.message); }
-  }, [syncUrl, playerName, playerId, localStatus, connectWs, refreshRoom]);
+  }, [syncUrl, playerName, playerId, localStatus, connectWs, refreshRoom, startSync]);
 
-  function startSync(code) {
+  const startSync = useCallback((code) => {
     if (syncTimer.current) clearInterval(syncTimer.current);
     syncTimer.current = setInterval(() => syncOnce(code), 2500);
-  }
+  }, [syncOnce]);
 
   const goSolo = useCallback(() => {
     setMode('solo');
@@ -190,6 +222,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     sentIds.current.clear();
     if (wsRef.current) wsRef.current.close();
     if (syncTimer.current) clearInterval(syncTimer.current);
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
   }, []);
 
   const undoDeath = useCallback(async (route) => {
@@ -236,6 +269,7 @@ export default function useRoom(syncUrl, playerName, localStatus, localSoul, loc
     return () => {
       if (wsRef.current) wsRef.current.close();
       if (syncTimer.current) clearInterval(syncTimer.current);
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
   }, []);
 

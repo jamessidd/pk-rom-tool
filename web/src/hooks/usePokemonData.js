@@ -6,7 +6,6 @@ export default function usePokemonData(speciesName) {
 
   useEffect(() => {
     let active = true;
-    setData({ sprite: null, baseStats: null });
     resolvePokeApiData(speciesName).then((resolved) => {
       if (active) setData(resolved);
     });

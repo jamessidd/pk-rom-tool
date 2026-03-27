@@ -1,4 +1,5 @@
-import usePokemonData from '../hooks/usePokemonData';
+import { useMemo, memo } from 'react';
+import useSprite from '../hooks/useSprite';
 
 const FALLBACK_SPRITES = [
   'https://play.pokemonshowdown.com/sprites/trainers/red.png',
@@ -8,9 +9,9 @@ const FALLBACK_SPRITES = [
 ];
 
 
-function MonDot({ mon }) {
+const MonDot = memo(function MonDot({ mon }) {
   const species = mon.species_name || mon.species || '';
-  const { sprite: img } = usePokemonData(species);
+  const img = useSprite(species);
   const alive = mon.alive !== undefined ? mon.alive : true;
   const hp = mon.current_hp ?? mon.currentHP ?? 0;
   const maxHp = mon.max_hp ?? mon.maxHP ?? 0;
@@ -34,9 +35,9 @@ function MonDot({ mon }) {
       </div>
     </div>
   );
-}
+});
 
-function TrainerBlock({ trainer, index }) {
+const TrainerBlock = memo(function TrainerBlock({ trainer, index }) {
   const party = trainer.party || [];
   const slots = party.slice(0, 6);
   const fallback = FALLBACK_SPRITES[index % FALLBACK_SPRITES.length];
@@ -58,23 +59,24 @@ function TrainerBlock({ trainer, index }) {
       </div>
     </div>
   );
-}
+});
 
 export default function TrainerColumn({ trainers, players, teamNames, isRaceMode, myTeam }) {
-  if (!trainers || trainers.length === 0) return null;
-
+  const safeTrainers = trainers || [];
   const getTeamName = (key) => (teamNames && teamNames[key]) || `Team ${key}`;
-
-  const playerTeamMap = {};
-  if (players) {
-    for (const p of players) {
-      if (p.team) playerTeamMap[p.player_id] = p.team;
+  const playerTeamMap = useMemo(() => {
+    const next = {};
+    for (const p of (players || [])) {
+      if (p.team) next[p.player_id] = p.team;
     }
-  }
+    return next;
+  }, [players]);
+
+  if (safeTrainers.length === 0) return null;
 
   if (isRaceMode) {
     const teamGroups = {};
-    for (const t of trainers) {
+    for (const t of safeTrainers) {
       const team = playerTeamMap[t.playerId] || '?';
       if (!teamGroups[team]) teamGroups[team] = [];
       teamGroups[team].push(t);
@@ -105,7 +107,7 @@ export default function TrainerColumn({ trainers, players, teamNames, isRaceMode
   return (
     <div className="tc-wrap">
       <h3 className="section-title">Trainers</h3>
-      {trainers.map((t, i) => (
+      {safeTrainers.map((t, i) => (
         <TrainerBlock key={t.playerId} trainer={t} index={i} />
       ))}
     </div>
